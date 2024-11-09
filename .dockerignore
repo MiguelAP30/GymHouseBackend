@@ -1,0 +1,5 @@
+/venv/
+/.git/
+.gitignore
+/src/__pycache__/
+/__pycache__/
