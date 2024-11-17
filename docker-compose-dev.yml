@@ -15,19 +15,18 @@ services:
       - db
 
   db:
-    image: mysql
+    image: postgres:latest
     container_name: gym_house_db
     restart: no
     ports:
-      - "3307:3306"
+      - "5432:5432"
     
     env_file:
       - .env
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
 
 volumes:
   gym_house_db_vol:
