@@ -23,32 +23,40 @@ def get_gym(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security
     if payload:
         role_current_user = payload.get("user.role")
         user_status = payload.get("user.status")
-        if role_current_user < 2:
+        if role_current_user < 3:
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         if user_status:
             current_user = payload.get("sub")
-            result = GymRepository(db).get_all_gym(current_user)
+            result = GymRepository(db).get_all_gym()
             return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@gym_router.post('/',response_model=Gym,description="Crea un nuevo gimnasio")
-def create_gym(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], gym: Gym = Body()) -> dict:
-    db= SessionLocal()
+@gym_router.post('/', response_model=Gym, description="Crea un nuevo gimnasio")
+def create_gym(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)], gym: Gym = Body()) -> dict:
+    db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
     if payload:
         role_current_user = payload.get("user.role")
         status_user = payload.get("user.status")
-        if role_current_user < 2:
+        current_user = payload.get("sub")
+        
+        if role_current_user < 3:
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
+        
         if status_user:
+            existing_gym = GymRepository(db).get_gym_by_user(current_user)
+            if existing_gym:
+                return JSONResponse(content={"message": "You already have a gym created", "data": None}, status_code=status.HTTP_400_BAD_REQUEST)
+            
             new_gym = GymRepository(db).create_new_gym(gym)
             return JSONResponse(
-                content={        
-                "message": "The gym was successfully created",        
-                "data": jsonable_encoder(new_gym)    
-                }, 
+                content={
+                    "message": "The gym was successfully created",
+                    "data": jsonable_encoder(new_gym)
+                },
                 status_code=status.HTTP_201_CREATED
             )
+        
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
 @gym_router.delete('/{id}',response_model=dict,description="Elimina un gimnasio específico")
@@ -58,7 +66,7 @@ def remove_gym(credentials: Annotated[HTTPAuthorizationCredentials,Depends(secur
     if payload:
         role_current_user = payload.get("user.role")
         status_user = payload.get("user.status")
-        if role_current_user < 2:
+        if role_current_user < 3:
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         if status_user:
             GymRepository(db).delete_gym(id)
@@ -72,7 +80,7 @@ def update_gym(credentials: Annotated[HTTPAuthorizationCredentials,Depends(secur
     if payload:
         role_current_user = payload.get("user.role")
         status_user = payload.get("user.status")
-        if role_current_user < 2:
+        if role_current_user < 3:
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         if status_user:
             result = GymRepository(db).update_gym(id, gym)
@@ -86,7 +94,7 @@ def get_gym_by_id(credentials: Annotated[HTTPAuthorizationCredentials,Depends(se
     if payload:
         role_current_user = payload.get("user.role")
         user_status = payload.get("user.status")
-        if role_current_user < 2:
+        if role_current_user < 3:
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         if user_status:
             current_user = payload.get("sub")
