@@ -16,7 +16,7 @@ user_gym_router = APIRouter(tags=['UserGym'])
 
 #CRUD user_gym
 
-@user_gym_router.get('/',response_model=List[UserGym],description="Devuelve todos los usuarios de un gimnasio")
+@user_gym_router.get('',response_model=List[UserGym],description="Devuelve todos los usuarios de un gimnasio")
 def get_user_gym(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)])-> List[UserGym]:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
@@ -31,7 +31,7 @@ def get_user_gym(credentials: Annotated[HTTPAuthorizationCredentials,Depends(sec
             return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@user_gym_router.post('/',response_model=UserGym,description="Crea un nuevo usuario de un gimnasio")
+@user_gym_router.post('',response_model=UserGym,description="Crea un nuevo usuario de un gimnasio")
 def create_user_gym(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], user_gym: UserGym = Body()) -> dict:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)

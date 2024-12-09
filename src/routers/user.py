@@ -16,7 +16,7 @@ user_router = APIRouter(tags=['Usuarios'])
 
 #CRUD user
 
-@user_router.get('/',response_model=List[User],description="Devuelve todos los usuarios")
+@user_router.get('',response_model=List[User],description="Devuelve todos los usuarios")
 def get_users(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)])-> List[User]:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)

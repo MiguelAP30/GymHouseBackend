@@ -16,7 +16,7 @@ comment_router = APIRouter(tags=['Comentarios'])
 
 #CRUD comment
 
-@comment_router.post('/',response_model=Comment,description="Crea un nuevo comentario")
+@comment_router.post('',response_model=Comment,description="Crea un nuevo comentario")
 def create_comment(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], comment: Comment = Body()) -> dict:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)

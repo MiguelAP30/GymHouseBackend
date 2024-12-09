@@ -16,7 +16,7 @@ history_pr_exercise_router = APIRouter(tags=['Historial de PR de ejercicios'])
 
 #CRUD history_pr_exercise
 
-@history_pr_exercise_router.get('/',response_model=List[HistoryPrExercise],description="Devuelve todos los historiales de PR de ejercicios")
+@history_pr_exercise_router.get('',response_model=List[HistoryPrExercise],description="Devuelve todos los historiales de PR de ejercicios")
 def get_history_pr_exercise(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)])-> List[HistoryPrExercise]:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
@@ -31,7 +31,7 @@ def get_history_pr_exercise(credentials: Annotated[HTTPAuthorizationCredentials,
             return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@history_pr_exercise_router.post('/',response_model=HistoryPrExercise,description="Crea un nuevo historial de PR de ejercicio")
+@history_pr_exercise_router.post('',response_model=HistoryPrExercise,description="Crea un nuevo historial de PR de ejercicio")
 def create_history_pr_exercise(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], history_pr_exercise: HistoryPrExercise = Body()) -> dict:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)

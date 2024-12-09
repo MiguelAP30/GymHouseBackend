@@ -18,7 +18,7 @@ detailed_exercise_router = APIRouter(tags=['Ejercicios detallados'])
 
 #CRUD detailed_exercise
 
-@detailed_exercise_router.get('/',response_model=List[DetailedExercise],description="Devuelve todos los ejercicios detallados")
+@detailed_exercise_router.get('',response_model=List[DetailedExercise],description="Devuelve todos los ejercicios detallados")
 def get_detailed_exercise(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)])-> List[DetailedExercise]:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
@@ -33,7 +33,7 @@ def get_detailed_exercise(credentials: Annotated[HTTPAuthorizationCredentials,De
             return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@detailed_exercise_router.post('/',response_model=DetailedExercise,description="Crea un nuevo ejercicio detallado")
+@detailed_exercise_router.post('',response_model=DetailedExercise,description="Crea un nuevo ejercicio detallado")
 def create_detailed_exercise(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], detailed_exercise: DetailedExercise = Body()) -> dict:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)

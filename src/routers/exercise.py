@@ -15,7 +15,7 @@ exercise_router = APIRouter(tags=['Ejercicios'])
 
 #CRUD exercise
 
-@exercise_router.get('/',response_model=List[Exercise],description="Devuelve todos los ejercicios")
+@exercise_router.get('',response_model=List[Exercise],description="Devuelve todos los ejercicios")
 def get_exercises(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)])-> List[Exercise]:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
@@ -58,7 +58,7 @@ def get_excercise(credentials: Annotated[HTTPAuthorizationCredentials,Depends(se
         else:
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@exercise_router.post('/',response_model=dict,description="Crear un nuevo ejercicio")
+@exercise_router.post('',response_model=dict,description="Crear un nuevo ejercicio")
 def create_exercise(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], exercise: Exercise = Body()) -> dict:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)

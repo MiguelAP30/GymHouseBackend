@@ -15,7 +15,7 @@ tag_of_training_plan_router = APIRouter(tags=['Etiquetas para planes de entrenam
 
 #CRUD tag_of_training_plan
 
-@tag_of_training_plan_router.get('/',response_model=List[TagOfTrainingPlan],description="Devuelve todas las etiquetas de planes de entrenamiento")
+@tag_of_training_plan_router.get('',response_model=List[TagOfTrainingPlan],description="Devuelve todas las etiquetas de planes de entrenamiento")
 def get_tag(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)])-> List[TagOfTrainingPlan]:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
@@ -50,7 +50,7 @@ def get_tag_of_training_plan(credentials: Annotated[HTTPAuthorizationCredentials
                 )
         return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@tag_of_training_plan_router.post('/',response_model=dict,description="Crea una nueva etiqueta de plan de entrenamiento")
+@tag_of_training_plan_router.post('',response_model=dict,description="Crea una nueva etiqueta de plan de entrenamiento")
 def create_tag(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], tag_of_training_plan: TagOfTrainingPlan = Body()) -> dict:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)

@@ -16,7 +16,7 @@ specific_muscle_router = APIRouter(tags=['SpecificMuscle'])
 
 #CRUD specific_muscle
 
-@specific_muscle_router.get('/',response_model=List[SpecificMuscle],description="Devuelve todos los músculos específicos")
+@specific_muscle_router.get('',response_model=List[SpecificMuscle],description="Devuelve todos los músculos específicos")
 def get_specific_muscle(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)])-> List[SpecificMuscle]:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
@@ -30,7 +30,7 @@ def get_specific_muscle(credentials: Annotated[HTTPAuthorizationCredentials,Depe
             return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@specific_muscle_router.post('/',response_model=SpecificMuscle,description="Crea un nuevo músculo específico")
+@specific_muscle_router.post('',response_model=SpecificMuscle,description="Crea un nuevo músculo específico")
 def create_specific_muscle(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], specific_muscle: SpecificMuscle = Body()) -> dict:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)

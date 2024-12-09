@@ -15,7 +15,7 @@ exercise_muscle_router = APIRouter(tags=['Máquina para hacer ejercicio por mús
 
 #CRUD exercise_muscle_router
 
-@exercise_muscle_router.get('/exercises_by_rate', response_model=List[ExerciseMuscle], description="Devuelve ejercicios ordenados según su calificación")
+@exercise_muscle_router.get('', response_model=List[ExerciseMuscle], description="Devuelve ejercicios ordenados según su calificación")
 def get_all_excercise_muscle_by_rate(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]) -> List[ExerciseMuscle]:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
@@ -42,7 +42,7 @@ def get_all_excercise_muscle_by_rate(credentials: Annotated[HTTPAuthorizationCre
                 status_code=status.HTTP_401_UNAUTHORIZED
                 )
 
-@exercise_muscle_router.get('/exercises_by_machine_and_rate', response_model=List[ExerciseMuscle], description="Devuelve los ejercicios ordenados según su calificación y máquina")
+@exercise_muscle_router.get('', response_model=List[ExerciseMuscle], description="Devuelve los ejercicios ordenados según su calificación y máquina")
 def get_all_excercise_muscle_machine_by_rate(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)], id_machine: int) -> List[ExerciseMuscle]:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
@@ -69,7 +69,7 @@ def get_all_excercise_muscle_machine_by_rate(credentials: Annotated[HTTPAuthoriz
                 status_code=status.HTTP_401_UNAUTHORIZED
                 )
 
-@exercise_muscle_router.get('/exercises_by_specific_muscle_and_rate', response_model=List[ExerciseMuscle], description="Devuelve los ejercicios ordenados según su calificación y músculo específico")
+@exercise_muscle_router.get('', response_model=List[ExerciseMuscle], description="Devuelve los ejercicios ordenados según su calificación y músculo específico")
 def get_all_excercise_muscle_specific_muscle_by_rate(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)], id_specific_muscle: int) -> List[ExerciseMuscle]:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
@@ -96,7 +96,7 @@ def get_all_excercise_muscle_specific_muscle_by_rate(credentials: Annotated[HTTP
                 status_code=status.HTTP_401_UNAUTHORIZED
                 )
 
-@exercise_muscle_router.get('/exercises_by_muscle_and_rate', response_model=List[ExerciseMuscle], description="Devuelve los ejercicios ordenados según su calificación y músculo general")
+@exercise_muscle_router.get('', response_model=List[ExerciseMuscle], description="Devuelve los ejercicios ordenados según su calificación y músculo general")
 def get_all_excercise_muscle_by_muscle_by_rate(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)], id_muscle: int) -> List[ExerciseMuscle]:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
@@ -161,7 +161,7 @@ def get_excercise_muscle_machine(credentials: Annotated[HTTPAuthorizationCredent
                 status_code=status.HTTP_401_UNAUTHORIZED
                 )
 
-@exercise_muscle_router.post('/', response_model=dict, description="Crea un nuevo ejercicio-musculo-maquina")
+@exercise_muscle_router.post('', response_model=dict, description="Crea un nuevo ejercicio-musculo-maquina")
 def create_excercise_muscle_machine(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)], exercise: ExerciseMuscle = Body()) -> dict:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)

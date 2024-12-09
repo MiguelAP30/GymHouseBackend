@@ -16,7 +16,7 @@ star_router = APIRouter(tags=['Star'])
 
 #CRUD star
 
-@star_router.get('/',response_model=List[Star],description="Devuelve todas las estrellas")
+@star_router.get('',response_model=List[Star],description="Devuelve todas las estrellas")
 def get_star(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)])-> List[Star]:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
@@ -30,7 +30,7 @@ def get_star(credentials: Annotated[HTTPAuthorizationCredentials,Depends(securit
             return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@star_router.post('/',response_model=Star,description="Crea una nueva estrella")
+@star_router.post('',response_model=Star,description="Crea una nueva estrella")
 def create_star(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], star: Star = Body()) -> dict:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)

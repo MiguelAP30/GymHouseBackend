@@ -15,7 +15,7 @@ exercise_per_week_day_router = APIRouter(tags=['Ejercicios para días de la sema
 
 #CRUD exercise_per_week_day
 
-@exercise_per_week_day_router.get('/my_exercises',response_model=List[ExercisePerWeekDay],description="Devuelve todos mis ejercicios por día de la semana")
+@exercise_per_week_day_router.get('',response_model=List[ExercisePerWeekDay],description="Devuelve todos mis ejercicios por día de la semana")
 def get_all_my_excercise_per_week_day(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)])-> List[ExercisePerWeekDay]:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
@@ -31,7 +31,7 @@ def get_all_my_excercise_per_week_day(credentials: Annotated[HTTPAuthorizationCr
         else:
             return JSONResponse(content={"message": "Insufficient privileges"}, status_code=status.HTTP_403_FORBIDDEN)
         
-@exercise_per_week_day_router.get('/premium_exercises',response_model=List[ExercisePerWeekDay],description="Devuelve todos los ejercicios de usuarios premium por dia de la semana")
+@exercise_per_week_day_router.get('',response_model=List[ExercisePerWeekDay],description="Devuelve todos los ejercicios de usuarios premium por dia de la semana")
 def get_premium_excercise_per_week_day(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)])-> List[ExercisePerWeekDay]:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
@@ -46,7 +46,7 @@ def get_premium_excercise_per_week_day(credentials: Annotated[HTTPAuthorizationC
         else:
             return JSONResponse(content={"message": "Insufficient privileges"}, status_code=status.HTTP_403_FORBIDDEN)
         
-@exercise_per_week_day_router.get('/client_exercises',response_model=List[ExercisePerWeekDay],description="Devuelve todos los ejercicios de clientes por día de la semana")
+@exercise_per_week_day_router.get('',response_model=List[ExercisePerWeekDay],description="Devuelve todos los ejercicios de clientes por día de la semana")
 def get_client_excercise_per_week_day(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)])-> List[ExercisePerWeekDay]:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
@@ -61,7 +61,7 @@ def get_client_excercise_per_week_day(credentials: Annotated[HTTPAuthorizationCr
         else:
             return JSONResponse(content={"message": "Insufficient privileges"}, status_code=status.HTTP_403_FORBIDDEN)
         
-@exercise_per_week_day_router.get('/admin_exercises',response_model=List[ExercisePerWeekDay],description="Devuelve todos los ejercicios de administradores por día de la semana")
+@exercise_per_week_day_router.get('',response_model=List[ExercisePerWeekDay],description="Devuelve todos los ejercicios de administradores por día de la semana")
 def get_admin_excercise_per_week_day(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)])-> List[ExercisePerWeekDay]:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
@@ -103,7 +103,7 @@ def get_excercise_per_week_day(credentials: Annotated[HTTPAuthorizationCredentia
         else:
             return JSONResponse(content={"message": "Insufficient privileges"}, status_code=status.HTTP_403_FORBIDDEN)
 
-@exercise_per_week_day_router.post('/',response_model=dict,description="Crea un nuevo ejercicio por día de la semana")
+@exercise_per_week_day_router.post('',response_model=dict,description="Crea un nuevo ejercicio por día de la semana")
 def create_excercise_per_week_day(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], exercise: ExercisePerWeekDay = Body()) -> dict:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)

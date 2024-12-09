@@ -16,7 +16,7 @@ dificulty_router = APIRouter(tags=['Dificultades'])
 
 #CRUD dificulty
 
-@dificulty_router.get('/',response_model=List[Dificulty],description="Devuelve todas las dificultades")
+@dificulty_router.get('',response_model=List[Dificulty],description="Devuelve todas las dificultades")
 def get_dificulty(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)])-> List[Dificulty]:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
@@ -30,7 +30,7 @@ def get_dificulty(credentials: Annotated[HTTPAuthorizationCredentials,Depends(se
             return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@dificulty_router.post('/',response_model=Dificulty,description="Crea una nueva dificultad")
+@dificulty_router.post('',response_model=Dificulty,description="Crea una nueva dificultad")
 def create_dificulty(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], dificulty: Dificulty = Body()) -> dict:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)

@@ -16,7 +16,7 @@ profile_router = APIRouter(tags=['Perfil'])
 
 #CRUD profile
 
-@profile_router.get('/',response_model=List[Profile],description="Devuelve todos los perfiles")
+@profile_router.get('',response_model=List[Profile],description="Devuelve todos los perfiles")
 def get_profile(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)])-> List[Profile]:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
@@ -30,7 +30,7 @@ def get_profile(credentials: Annotated[HTTPAuthorizationCredentials,Depends(secu
             return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@profile_router.post('/',response_model=Profile,description="Crea un nuevo perfil")
+@profile_router.post('',response_model=Profile,description="Crea un nuevo perfil")
 def create_profile(profile: Profile, credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)])-> Profile:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)

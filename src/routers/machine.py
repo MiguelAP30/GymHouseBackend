@@ -15,7 +15,7 @@ machine_router = APIRouter(tags=['Máquinas'])
 
 #CRUD machine
 
-@machine_router.get('/',response_model=List[Machine],description="Devuelve todas las máquinas")
+@machine_router.get('',response_model=List[Machine],description="Devuelve todas las máquinas")
 def get_machines(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)])-> List[Machine]:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
@@ -58,7 +58,7 @@ def get_machine(credentials: Annotated[HTTPAuthorizationCredentials,Depends(secu
         else:
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@machine_router.post('/',response_model=dict,description="Crea una nueva máquina")
+@machine_router.post('',response_model=dict,description="Crea una nueva máquina")
 def create_machine(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], machine: Machine = Body()) -> dict:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
