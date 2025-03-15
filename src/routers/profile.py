@@ -23,7 +23,7 @@ def get_profile(credentials: Annotated[HTTPAuthorizationCredentials,Depends(secu
     if payload:
         role_current_user = payload.get("user.role")
         user_status = payload.get("user.status")
-        if role_current_user < 2:
+        if role_current_user < 1:
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         if user_status:
             result = ProfileRepository(db).get_all_profile()
@@ -37,7 +37,7 @@ def create_profile(profile: Profile, credentials: Annotated[HTTPAuthorizationCre
     if payload:
         role_current_user = payload.get("user.role")
         user_status = payload.get("user.status")
-        if role_current_user < 2:
+        if role_current_user < 1:
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         if user_status:
             result = ProfileRepository(db).create_new_profile(profile)
@@ -51,7 +51,7 @@ def delete_profile(id: int, credentials: Annotated[HTTPAuthorizationCredentials,
     if payload:
         role_current_user = payload.get("user.role")
         user_status = payload.get("user.status")
-        if role_current_user < 2:
+        if role_current_user < 1:
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         if user_status:
             result = ProfileRepository(db).delete_profile(id)
@@ -65,7 +65,7 @@ def update_profile(id: int, profile: Profile, credentials: Annotated[HTTPAuthori
     if payload:
         role_current_user = payload.get("user.role")
         user_status = payload.get("user.status")
-        if role_current_user < 2:
+        if role_current_user < 1:
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         if user_status:
             result = ProfileRepository(db).update_profile(id,profile)
@@ -79,7 +79,7 @@ def get_profile_by_email(email: str, credentials: Annotated[HTTPAuthorizationCre
     if payload:
         role_current_user = payload.get("user.role")
         user_status = payload.get("user.status")
-        if role_current_user < 2:
+        if role_current_user < 1:
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         if user_status:
             result = ProfileRepository(db).get_profile_by_email(email)

@@ -5,7 +5,7 @@ class TrainingPlan(BaseModel):
     id: Optional[int] = Field(default=None, title="Id del plan de entrenamiento")
     name: str = Field(min_length=4, title="nombre del plan de entrenamiento", max_length=60)
     description: str = Field(min_length=4, title="Descripcion del plan de entrenamiento", max_length=200)
-    tag_of_training_plan_id: int = Field(default=None, title="Id de la etiqueta del plan de entrenamiento")
+    tag_of_training_plan_id: Optional[int] = Field(default=None, title="Id de la etiqueta del plan de entrenamiento")
     user_email: Optional[str] = Field(default=None, title="Email del usuario")
     is_visible: Optional[bool] = Field(default=False, title="Estado del plan de entrenamiento")
 

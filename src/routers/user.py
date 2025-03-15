@@ -34,7 +34,7 @@ def get_user(credentials: Annotated[HTTPAuthorizationCredentials,Depends(securit
     payload = auth_handler.decode_token(credentials.credentials)
     if payload:
         role_current_user = payload.get("user.role")
-        if role_current_user != 4:
+        if role_current_user < 1:
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         if not element:        
             return JSONResponse(

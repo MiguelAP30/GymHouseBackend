@@ -29,7 +29,7 @@ def get_training_plans(credentials: Annotated[HTTPAuthorizationCredentials,Depen
         result = TrainingPlanRepository(db).get_all_training_plans()
         return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
 
-@training_plan_router.get('', response_model=List[TrainingPlan], description="Retorna todos los planes de entrenamiento de los usuarios con rol de administrador")
+@training_plan_router.get('/Generales', response_model=List[TrainingPlan], description="Retorna todos los planes de entrenamiento de los usuarios con rol de administrador")
 def get_training_plans_by_role_admin(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]) -> List[TrainingPlan]:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
@@ -43,7 +43,7 @@ def get_training_plans_by_role_admin(credentials: Annotated[HTTPAuthorizationCre
         result = TrainingPlanRepository(db).get_all_training_plans_by_role_admin()
         return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
 
-@training_plan_router.get('', response_model=List[TrainingPlan], description="Retorna todos los planes de entrenamiento de los usuarios con rol de administrador")
+@training_plan_router.get('/Profesionales', response_model=List[TrainingPlan], description="Retorna todos los planes de entrenamiento de los usuarios con rol de administrador")
 def get_training_plans_by_role_gym(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]) -> List[TrainingPlan]:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
@@ -57,7 +57,7 @@ def get_training_plans_by_role_gym(credentials: Annotated[HTTPAuthorizationCrede
         result = TrainingPlanRepository(db).get_all_training_plans_by_role_gym()
         return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
 
-@training_plan_router.get('', response_model=List[TrainingPlan], description="Retorna todos los planes de entrenamiento de los usuarios con rol de administrador")
+@training_plan_router.get('/Usuarios', response_model=List[TrainingPlan], description="Retorna todos los planes de entrenamiento de los usuarios con rol de administrador")
 def get_training_plans_by_role_premium(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]) -> List[TrainingPlan]:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
@@ -71,7 +71,7 @@ def get_training_plans_by_role_premium(credentials: Annotated[HTTPAuthorizationC
         result = TrainingPlanRepository(db).get_all_training_plans_by_role_premium()
         return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
 
-@training_plan_router.get('', response_model=List[TrainingPlan], description="Retorna todos los planes de entrenamiento creados por el usuario autenticado")
+@training_plan_router.get('/Propias', response_model=List[TrainingPlan], description="Retorna todos los planes de entrenamiento creados por el usuario autenticado")
 def get_my_training_plans(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]) -> List[TrainingPlan]:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
