@@ -19,6 +19,8 @@ from src.routers.star import star_router
 from src.routers.specific_muscle import specific_muscle_router
 from src.routers.profile import profile_router
 from src.routers.history_pr_exercise import history_pr_exercise_router
+from src.routers.series_pr_exercise import series_pr_exercise_router
+from src.routers.dropset_pr_exercise import dropset_pr_exercise_router
 from src.routers.gym import gym_router
 from src.routers.exercise_muscle import exercise_muscle_router
 from src.routers.dificulty import dificulty_router
@@ -106,6 +108,8 @@ app.include_router(prefix="/star", router= star_router)
 app.include_router(prefix="/specific_muscle", router= specific_muscle_router)
 app.include_router(prefix="/profile", router= profile_router)
 app.include_router(prefix="/history_pr_exercise", router= history_pr_exercise_router)
+app.include_router(prefix="/series_pr_exercise", router= series_pr_exercise_router)
+app.include_router(prefix="/dropset_pr_exercise", router= dropset_pr_exercise_router)
 app.include_router(prefix="/gym", router= gym_router)
 app.include_router(prefix="/dificulty", router= dificulty_router)
 app.include_router(prefix="/comment", router= comment_router)

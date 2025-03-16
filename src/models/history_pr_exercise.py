@@ -8,12 +8,11 @@ class HistoryPrExercise(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_email = Column(String(length=250), ForeignKey("users.email"))
     exercise_id = Column(Integer, ForeignKey("exercises.id"))
-    weight = Column(Float)
-    reps = Column(Integer)
     date = Column(Date)
 
     users = relationship("User", back_populates="history_pr_exercises")
     exercises = relationship("Exercise", back_populates="history_pr_exercises")
+    series_pr_exercises = relationship("SeriesPrExercise", back_populates="history_pr_exercise", cascade="all, delete-orphan")
 
     def to_dict(self):
         return {c.key: getattr(self, c.key) for c in inspect(self).mapper.column_attrs}
