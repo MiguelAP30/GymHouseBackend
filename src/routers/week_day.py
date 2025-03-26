@@ -74,3 +74,32 @@ def update_week_day(id: int = Path(ge=1), week_day: WeekDay = Body()) -> dict:
             status_code=status.HTTP_404_NOT_FOUND
             )
     return JSONResponse(content=jsonable_encoder(element), status_code=status.HTTP_200_OK)
+
+@week_day_router.post('/init', response_model=dict, description="Inicializa los 7 días de la semana en la base de datos")
+def init_week_days() -> dict:
+    db = SessionLocal()
+    days = [
+        {"name": "Lunes"},
+        {"name": "Martes"},
+        {"name": "Miércoles"},
+        {"name": "Jueves"},
+        {"name": "Viernes"},
+        {"name": "Sábado"},
+        {"name": "Domingo"}
+    ]
+    
+    created_days = []
+    for day in days:
+        if not db.query(week_days).filter_by(name=day["name"]).first():
+            new_day = week_days(**day)
+            db.add(new_day)
+            created_days.append(new_day)
+    
+    db.commit()
+    return JSONResponse(
+        content={
+            "message": "Los días de la semana se han inicializado correctamente",
+            "data": jsonable_encoder(created_days)
+        },
+        status_code=status.HTTP_201_CREATED
+    )

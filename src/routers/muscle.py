@@ -110,3 +110,43 @@ def update_muscle(credentials: Annotated[HTTPAuthorizationCredentials,Depends(se
             return JSONResponse(content=jsonable_encoder(element), status_code=status.HTTP_200_OK)
         else:
             return JSONResponse(content={"message": "You do not have the necessary permissions or your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
+
+@muscle_router.post('/init', response_model=dict, description="Inicializa músculos específicos en la base de datos")
+def init_muscles(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)]) -> dict:
+    db = SessionLocal()
+    payload = auth_handler.decode_token(credentials.credentials)
+    if payload:
+        role_user = payload.get("user.role")
+        status_user = payload.get("user.status")
+        if role_user >= 3 and status_user:
+            muscles_data = [
+                {"name": "Pecho", "description": "Grupo muscular en la parte delantera del torso, responsable de movimientos de empuje."},
+                {"name": "Espalda", "description": "Grupo muscular en la parte posterior del torso, involucrado en movimientos de tracción y estabilización."},
+                {"name": "Hombros", "description": "Grupo muscular ubicado en la parte superior del brazo, clave en movimientos de empuje y elevación."},
+                {"name": "Brazos", "description": "Grupo muscular que incluye los músculos en la parte superior del brazo, responsable de flexión y extensión del codo."},
+                {"name": "Antebrazos", "description": "Músculos responsables de la flexión y extensión de la muñeca y los dedos."},
+                {"name": "Abdomen", "description": "Grupo muscular en la parte frontal del torso, fundamental para la estabilidad del core y movimientos de flexión del tronco."},
+                {"name": "Zona Lumbar", "description": "Músculos en la parte baja de la espalda, esenciales para la estabilidad y extensión de la columna."},
+                {"name": "Glúteos", "description": "Grupo muscular en la parte posterior de la cadera, involucrado en la extensión de la cadera y estabilización."},
+                {"name": "Muslos", "description": "Grupo muscular en la parte frontal y posterior del muslo, responsable de la extensión y flexión de la rodilla."},
+                {"name": "Aductores", "description": "Grupo muscular en la parte interna del muslo, encargado de la aducción de la pierna."},
+                {"name": "Pantorrillas", "description": "Músculos en la parte inferior de la pierna, responsables de la flexión plantar del pie."},
+                {"name": "Serrato Anterior", "description": "Músculo en la parte lateral del torso, involucrado en la estabilización de la escápula."}
+            ]
+            
+            created_muscles = []
+            for muscle_data in muscles_data:
+                if not db.query(muscles).filter_by(name=muscle_data["name"]).first():
+                    new_muscle = muscles(**muscle_data)
+                    db.add(new_muscle)
+                    created_muscles.append(new_muscle)
+            
+            db.commit()
+            return JSONResponse(
+                content={
+                    "message": "Los músculos se han inicializado correctamente",
+                    "data": jsonable_encoder(created_muscles)
+                },
+                status_code=status.HTTP_201_CREATED
+            )
+        return JSONResponse(content={"message": "You do not have the necessary permissions or your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)

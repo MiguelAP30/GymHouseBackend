@@ -518,9 +518,3 @@ def init_exercises(db: Session):
 
 def init_data(db: Session):
     init_roles(db)
-    init_week_days(db)
-    init_muscles(db)
-    init_specific_muscles(db)
-    init_difficulties(db)
-    init_machines(db)
-    init_exercises(db)
