@@ -8,13 +8,43 @@ from src.auth.has_access import security
 from src.auth import auth_handler
 from fastapi.security import HTTPAuthorizationCredentials
 
-from src.schemas.gym import Gym
+from src.schemas.gym import Gym, GymUpdate, GymCreate
 from src.repositories.gym import GymRepository
 from src.models.gym import Gym as gyms
 
 gym_router = APIRouter(tags=['Gimnasios'])
 
 #CRUD gym
+
+@gym_router.get('/user',response_model=Gym,description="Devuelve el gimnasio de un usuario específico")
+def get_gym_by_user(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)]) -> dict:
+    db = SessionLocal()
+    payload = auth_handler.decode_token(credentials.credentials)
+    if payload:
+        role_current_user = payload.get("user.role")
+        user_status = payload.get("user.status")
+        if role_current_user < 3:
+            return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
+        if user_status:
+            current_user = payload.get("sub")
+            result = GymRepository(db).get_gym_by_user(current_user)
+            return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
+        return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
+
+@gym_router.get('/{id}',response_model=Gym,description="Devuelve un gimnasio específico")
+def get_gym_by_id(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], id: int = Path(ge=1)) -> dict:
+    db = SessionLocal()
+    payload = auth_handler.decode_token(credentials.credentials)
+    if payload:
+        role_current_user = payload.get("user.role")
+        user_status = payload.get("user.status")
+        if role_current_user < 3:
+            return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
+        if user_status:
+            current_user = payload.get("sub")
+            result = GymRepository(db).get_gym_by_id(id)
+            return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
+        return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
 @gym_router.get('',response_model=List[Gym],description="Devuelve todos los gimnasios")
 def get_gym(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)])-> List[Gym]:
@@ -32,7 +62,7 @@ def get_gym(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
 @gym_router.post('', response_model=Gym, description="Crea un nuevo gimnasio")
-def create_gym(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)], gym: Gym = Body()) -> dict:
+def create_gym(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)], gym: GymCreate = Body()) -> dict:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
     if payload:
@@ -48,7 +78,11 @@ def create_gym(credentials: Annotated[HTTPAuthorizationCredentials, Depends(secu
             if existing_gym:
                 return JSONResponse(content={"message": "You already have a gym created", "data": None}, status_code=status.HTTP_400_BAD_REQUEST)
             
-            new_gym = GymRepository(db).create_new_gym(gym)
+            # Convertimos GymCreate a Gym agregando el user_email
+            gym_data = gym.model_dump()
+            gym_data['user_email'] = current_user
+            gym_full = Gym(**gym_data)
+            new_gym = GymRepository(db).create_new_gym(gym_full)
             return JSONResponse(
                 content={
                     "message": "The gym was successfully created",
@@ -59,22 +93,22 @@ def create_gym(credentials: Annotated[HTTPAuthorizationCredentials, Depends(secu
         
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@gym_router.delete('/{id}',response_model=dict,description="Elimina un gimnasio específico")
-def remove_gym(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], id: int = Path(ge=1)) -> dict:
+@gym_router.delete('/admin/{id}',response_model=dict,description="Elimina un gimnasio específico (solo administradores)")
+def remove_gym_admin(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], id: int = Path(ge=1)) -> dict:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
     if payload:
         role_current_user = payload.get("user.role")
         status_user = payload.get("user.status")
-        if role_current_user < 3:
+        if role_current_user != 4:
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         if status_user:
-            GymRepository(db).delete_gym(id)
+            GymRepository(db).delete_gym_by_id(id)
             return JSONResponse(content={"message": "The gym was successfully deleted", "data": None}, status_code=status.HTTP_200_OK)
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@gym_router.put('/{id}',response_model=Gym,description="Actualiza un gimnasio específico")
-def update_gym(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], id: int = Path(ge=1), gym: Gym = Body()) -> dict:
+@gym_router.delete('/user',response_model=dict,description="Elimina el gimnasio del usuario actual")
+def remove_gym_user(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)]) -> dict:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
     if payload:
@@ -83,22 +117,28 @@ def update_gym(credentials: Annotated[HTTPAuthorizationCredentials,Depends(secur
         if role_current_user < 3:
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         if status_user:
-            result = GymRepository(db).update_gym(id, gym)
-            return JSONResponse(content={"message": "The gym was successfully updated", "data": jsonable_encoder(result)}, status_code=status.HTTP_200_OK)
+            current_user = payload.get("sub")
+            GymRepository(db).delete_gym_by_user(current_user)
+            return JSONResponse(content={"message": "Your gym was successfully deleted", "data": None}, status_code=status.HTTP_200_OK)
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@gym_router.get('/{id}',response_model=Gym,description="Devuelve un gimnasio específico")
-def get_gym_by_id(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], id: int = Path(ge=1)) -> dict:
+@gym_router.put('/user',response_model=Gym,description="Actualiza el gimnasio del usuario actual")
+def update_gym_user(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], gym: GymUpdate = Body()) -> dict:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
     if payload:
         role_current_user = payload.get("user.role")
-        user_status = payload.get("user.status")
+        status_user = payload.get("user.status")
         if role_current_user < 3:
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
-        if user_status:
+        if status_user:
             current_user = payload.get("sub")
-            result = GymRepository(db).get_gym_by_id(id, current_user)
-            return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
+            # Convertimos GymUpdate a Gym agregando el user_email
+            gym_data = gym.model_dump()
+            gym_data['user_email'] = current_user
+            gym_full = Gym(**gym_data)
+            result = GymRepository(db).update_gym_by_user(current_user, gym_full)
+            if result:
+                return JSONResponse(content={"message": "Your gym was successfully updated", "data": jsonable_encoder(result)}, status_code=status.HTTP_200_OK)
+            return JSONResponse(content={"message": "You don't have a gym to update", "data": None}, status_code=status.HTTP_404_NOT_FOUND)
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
-

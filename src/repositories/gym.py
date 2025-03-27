@@ -31,3 +31,38 @@ class GymRepository:
     def get_gym_by_user(self, user: str) -> GymModel:
         element = self.db.query(GymModel).filter(GymModel.user_email == user).first()
         return element
+
+    def delete_gym_by_id(self, id: int) -> dict:
+        element = self.db.query(GymModel).filter(GymModel.id == id).first()
+        if element:
+            self.db.delete(element)
+            self.db.commit()
+        return element
+
+    def delete_gym_by_user(self, user_email: str) -> dict:
+        element = self.db.query(GymModel).filter(GymModel.user_email == user_email).first()
+        if element:
+            self.db.delete(element)
+            self.db.commit()
+        return element
+
+    def update_gym_by_id(self, id: int, gym: GymSchema) -> GymModel:
+        element = self.db.query(GymModel).filter(GymModel.id == id).first()
+        if element:
+            for key, value in gym.model_dump().items():
+                setattr(element, key, value)
+            self.db.commit()
+            self.db.refresh(element)
+        return element
+
+    def update_gym_by_user(self, user_email: str, gym: GymSchema) -> GymModel:
+        element = self.db.query(GymModel).filter(GymModel.user_email == user_email).first()
+        if element:
+            gym_data = gym.model_dump()
+            gym_data.pop('id', None)
+            gym_data.pop('user_email', None)
+            for key, value in gym_data.items():
+                setattr(element, key, value)
+            self.db.commit()
+            self.db.refresh(element)
+        return element
