@@ -39,3 +39,10 @@ class Exercise(BaseModel):
             }
         }
 
+class PaginatedResponse(BaseModel):
+    items: List[Exercise]
+    total: int
+    page: int
+    size: int
+    pages: int
+

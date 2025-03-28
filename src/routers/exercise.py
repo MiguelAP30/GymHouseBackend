@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Body, Depends, Query, Path, status
 from fastapi.responses import JSONResponse
-from typing import Annotated, List
+from typing import Annotated, List, Optional
 from fastapi import APIRouter
 from src.config.database import SessionLocal 
 from fastapi.encoders import jsonable_encoder
 from src.repositories.exercise import ExerciseRepository
-from src.schemas.exercise import Exercise
+from src.schemas.exercise import Exercise, PaginatedResponse
 from src.models.exercise import Exercise as ExerciseModel
 from fastapi.security import HTTPAuthorizationCredentials
 from src.auth.has_access import security
@@ -15,17 +15,40 @@ exercise_router = APIRouter(tags=['Ejercicios'])
 
 #CRUD exercise
 
-@exercise_router.get('',response_model=List[Exercise],description="Devuelve todos los ejercicios")
-def get_exercises(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)])-> List[Exercise]:
-    db= SessionLocal()
+@exercise_router.get('', response_model=PaginatedResponse, description="Devuelve todos los ejercicios con paginación y filtros")
+def get_exercises(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+    page: int = Query(1, ge=1, description="Número de página"),
+    size: int = Query(10, ge=1, le=100, description="Tamaño de la página"),
+    name: Optional[str] = Query(None, description="Texto para buscar en el nombre"),
+    difficulty_id: Optional[int] = Query(None, description="ID de la dificultad para filtrar"),
+    machine_id: Optional[int] = Query(None, description="ID de la máquina para filtrar")
+) -> PaginatedResponse:
+    db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
     if payload:
         role_user = payload.get("user.role")
         status_user = payload.get("user.status")
         if role_user >= 3:
             if status_user:
-                result = ExerciseRepository(db).get_all_excercises()
-                return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
+                exercises, total = ExerciseRepository(db).get_all_excercises(
+                    page=page,
+                    size=size,
+                    search_name=name,
+                    difficulty_id=difficulty_id,
+                    machine_id=machine_id
+                )
+                total_pages = (total + size - 1) // size
+                
+                exercises_dict = [jsonable_encoder(exercise) for exercise in exercises]
+                
+                return PaginatedResponse(
+                    items=exercises_dict,
+                    total=total,
+                    page=page,
+                    size=size,
+                    pages=total_pages
+                )
             else:
                 return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_403_FORBIDDEN)
         else:
