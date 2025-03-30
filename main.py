@@ -25,6 +25,7 @@ from src.routers.gym import gym_router
 from src.routers.exercise_muscle import exercise_muscle_router
 from src.routers.dificulty import dificulty_router
 from src.routers.comment import comment_router
+from src.routers.notification import notification_router
 
 from src.config.database import Base, engine, SessionLocal
 from src.config.database_init import init_data
@@ -112,5 +113,6 @@ app.include_router(prefix="/series_pr_exercise", router= series_pr_exercise_rout
 app.include_router(prefix="/dropset_pr_exercise", router= dropset_pr_exercise_router)
 app.include_router(prefix="/gym", router= gym_router)
 app.include_router(prefix="/comment", router= comment_router)
+app.include_router(prefix="/notification", router= notification_router)
 
 #################################################
