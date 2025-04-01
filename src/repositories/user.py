@@ -33,7 +33,6 @@ class UserRepository():
     def update_user(self, email: str, user: User) -> dict:
         element = self.db.query(users).filter(users.email == email).first()
         element.id_number = user.id_number
-        element.password = user.password
         element.user_name = user.user_name
         element.name = user.name
         element.address = user.address

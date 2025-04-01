@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from src.config.database import SessionLocal 
 from fastapi.encoders import jsonable_encoder
 from src.schemas.user import User
+from src.schemas.user import UpdateUser
 from src.models.user import User as users
 from src.repositories.user import UserRepository
 
@@ -26,6 +27,23 @@ def get_users(credentials: Annotated[HTTPAuthorizationCredentials,Depends(securi
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         result = UserRepository(db).get_all_users()
         return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
+
+@user_router.put('/update/{email}',response_model=dict,description="Updates specific user")
+def update_user(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], email: str = Path(min_length=5), user: UpdateUser = Body()) -> dict:
+    payload = auth_handler.decode_token(credentials.credentials)
+    db = SessionLocal()
+    if payload:
+        element = UserRepository(db).update_user(email, user)
+        if not element:        
+            return JSONResponse(
+                content={            
+                    "message": "The requested user was not found",            
+                    "data": None        
+                    }, 
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+        return JSONResponse(content=jsonable_encoder(element), status_code=status.HTTP_200_OK)
+    return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
 @user_router.get('/{email}',response_model=User,description="Devuelve la información de un solo usuario")
 def get_user(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], email: str = Path(min_length=5)) -> User:
@@ -49,7 +67,7 @@ def get_user(credentials: Annotated[HTTPAuthorizationCredentials,Depends(securit
             status_code=status.HTTP_200_OK
         )
 
-@user_router.put('/{email}',response_model=dict,description="Desactiva el usuario del sistema")
+@user_router.put('/delete/{email}',response_model=dict,description="Desactiva el usuario del sistema")
 def remove_user(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], email: str = Path(min_length=5)) -> dict:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
@@ -71,7 +89,15 @@ def update_role(credentials: Annotated[HTTPAuthorizationCredentials,Depends(secu
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
     if payload:
-        element = UserRepository(db).update_role(email, role_id)
+        role_user = payload.get("user.role")
+        status_user = payload.get("user.status")
+        if role_user > 3:
+            if status_user:
+                element = UserRepository(db).update_role(email, role_id)
+            else:
+                return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_403_FORBIDDEN)
+        else:
+            return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         if not element:        
             return JSONResponse(
                 content={            
@@ -83,16 +109,3 @@ def update_role(credentials: Annotated[HTTPAuthorizationCredentials,Depends(secu
         return JSONResponse(content=jsonable_encoder(element), status_code=status.HTTP_200_OK)
     return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-# @user_router.put('/{email}',response_model=dict,description="Updates specific user")
-# def update_user(email: str = Path(min_length=5), user: User = Body()) -> dict:
-#     db = SessionLocal()
-#     element = UserRepository(db).update_user(email, user)
-#     if not element:        
-#         return JSONResponse(
-#             content={            
-#                 "message": "The requested user was not found",            
-#                 "data": None        
-#                 }, 
-#             status_code=status.HTTP_404_NOT_FOUND
-#         )
-#     return JSONResponse(content=jsonable_encoder(element), status_code=status.HTTP_200_OK)

@@ -29,6 +29,11 @@ class ResetPassword(BaseModel):
     new_password: str = Field(min_length=6, title="Nueva contraseña del usuario")
     reset_token: str = Field(title="Token de restablecimiento de contraseña")
 
-
-
-
+class UpdateUser(BaseModel):
+    id_number: str = Field(min_length=6, title="Numero de identificacion del usuario", max_length=20, example="123456789")
+    user_name: Optional[str] = Field(default=None, min_length=6, title="Nombre de usuario", max_length=50, example="hola123")
+    name: str = Field(min_length=2, title="Nombre del usuario", max_length=50, example="Miguel Angel")
+    phone: str = Field(min_length=8, title="Telefono del usuario", max_length=20, example="12345678")
+    address: Optional[str] = Field(default=None, min_length=8, title="Direccion del usuario", max_length=150, example="Calle 123")
+    birth_date: str = Field(title="Fecha de nacimiento del usuario", example="2003-11-12")
+    gender: str = Field(min_length=1,title="Genero del usuario", max_length=1, example="m")
