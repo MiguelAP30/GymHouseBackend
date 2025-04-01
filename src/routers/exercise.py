@@ -17,7 +17,6 @@ exercise_router = APIRouter(tags=['Ejercicios'])
 
 @exercise_router.get('', response_model=PaginatedResponse, description="Devuelve todos los ejercicios con paginación y filtros")
 def get_exercises(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
     page: int = Query(1, ge=1, description="Número de página"),
     size: int = Query(10, ge=1, le=100, description="Tamaño de la página"),
     name: Optional[str] = Query(None, description="Texto para buscar en el nombre"),
@@ -25,61 +24,46 @@ def get_exercises(
     machine_id: Optional[int] = Query(None, description="ID de la máquina para filtrar")
 ) -> PaginatedResponse:
     db = SessionLocal()
-    payload = auth_handler.decode_token(credentials.credentials)
-    if payload:
-        role_user = payload.get("user.role")
-        status_user = payload.get("user.status")
-        if role_user >= 3:
-            if status_user:
-                exercises, total = ExerciseRepository(db).get_all_excercises(
-                    page=page,
-                    size=size,
-                    search_name=name,
-                    difficulty_id=difficulty_id,
-                    machine_id=machine_id
-                )
-                total_pages = (total + size - 1) // size
-                
-                exercises_dict = [jsonable_encoder(exercise) for exercise in exercises]
-                
-                return PaginatedResponse(
-                    items=exercises_dict,
-                    total=total,
-                    page=page,
-                    size=size,
-                    pages=total_pages
-                )
-            else:
-                return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_403_FORBIDDEN)
-        else:
-            return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
+    exercises, total = ExerciseRepository(db).get_all_excercises(
+        page=page,
+        size=size,
+        search_name=name,
+        difficulty_id=difficulty_id,
+        machine_id=machine_id
+    )
+    total_pages = (total + size - 1) // size
+    exercises_dict = [jsonable_encoder(exercise) for exercise in exercises]
+    
+    paginated_response = PaginatedResponse(
+        items=exercises_dict,
+        total=total,
+        page=page,
+        size=size,
+        pages=total_pages
+    )
+    
+    return JSONResponse(
+        content=jsonable_encoder(paginated_response),
+        status_code=status.HTTP_200_OK
+    )
+
 
 @exercise_router.get('/{id}',response_model=Exercise,description="Devuelve la información de un solo ejercicio")
-def get_excercise(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], id: int = Path(ge=1)) -> Exercise:
+def get_excercise( id: int = Path(ge=1)) -> Exercise:
     db = SessionLocal()
-    payload = auth_handler.decode_token(credentials.credentials)
-    if payload:
-        role_user = payload.get("user.role")
-        status_user = payload.get("user.status")
-        if role_user >= 3:
-            if status_user:
-                element=  ExerciseRepository(db).get_excercise_by_id(id)
-                if not element:        
-                    return JSONResponse(
-                        content={            
-                            "message": "The requested exercise was not found",            
-                            "data": None        
-                            }, 
-                        status_code=status.HTTP_404_NOT_FOUND
-                        )    
-                return JSONResponse(
-                    content=jsonable_encoder(element),                        
-                    status_code=status.HTTP_200_OK
-                    )
-            else:
-                return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_403_FORBIDDEN)
-        else:
-            return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
+    element=  ExerciseRepository(db).get_excercise_by_id(id)
+    if not element:        
+        return JSONResponse(
+            content={            
+                "message": "The requested exercise was not found",            
+                "data": None        
+                }, 
+            status_code=status.HTTP_404_NOT_FOUND
+            )    
+    return JSONResponse(
+        content=jsonable_encoder(element),                        
+        status_code=status.HTTP_200_OK
+        )
 
 @exercise_router.post('',response_model=dict,description="Crear un nuevo ejercicio")
 def create_exercise(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], exercise: Exercise = Body()) -> dict:
@@ -88,7 +72,7 @@ def create_exercise(credentials: Annotated[HTTPAuthorizationCredentials,Depends(
     if payload:
         role_user = payload.get("user.role")
         status_user = payload.get("user.status")
-        if role_user >= 3:
+        if role_user > 3:
             if status_user:
                 new_excercise = ExerciseRepository(db).create_new_excercise(exercise)
                 return JSONResponse(
@@ -110,7 +94,7 @@ def remove_excercise(credentials: Annotated[HTTPAuthorizationCredentials,Depends
     if payload:
         role_user = payload.get("user.role")
         status_user = payload.get("user.status")
-        if role_user >= 3:
+        if role_user > 3:
             if status_user:
                 element = ExerciseRepository(db).delete_excercise(id)
                 if not element:        
@@ -140,7 +124,7 @@ def update_excercise(credentials: Annotated[HTTPAuthorizationCredentials,Depends
     if payload:
         role_user = payload.get("user.role")
         status_user = payload.get("user.status")
-        if role_user >= 3:
+        if role_user > 3:
             if status_user:
                 element = ExerciseRepository(db).update_excercise(id, exercise)
                 if not element:        
@@ -170,7 +154,7 @@ def init_exercises(credentials: Annotated[HTTPAuthorizationCredentials,Depends(s
     if payload:
         role_user = payload.get("user.role")
         status_user = payload.get("user.status")
-        if role_user >= 3:
+        if role_user > 3:
             if status_user:
                 exercises_data = [
                     {"name": "Press de Banca", "description": "Ejercicio compuesto que trabaja principalmente el pectoral mayor, los tríceps y los hombros.", "video": "https://www.youtube.com/watch?v=gRVjAtPip0Y", "image": "https://example.com/press-banca.jpg", "dateAdded": "2024-01-01", "dificulty_id": 2, "machine_id": 10},

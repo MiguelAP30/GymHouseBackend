@@ -16,47 +16,27 @@ machine_router = APIRouter(tags=['Máquinas'])
 #CRUD machine
 
 @machine_router.get('',response_model=List[Machine],description="Devuelve todas las máquinas")
-def get_machines(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)])-> List[Machine]:
+def get_machines()-> List[Machine]:
     db= SessionLocal()
-    payload = auth_handler.decode_token(credentials.credentials)
-    if payload:
-        role_user = payload.get("user.role")
-        status_user = payload.get("user.status")
-        if role_user >= 3:
-            if status_user:
-                result = MachineRepository(db).get_all_machines()
-                return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
-            else:
-                return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_403_FORBIDDEN)
-        else:
-            return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
+    result = MachineRepository(db).get_all_machines()
+    return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
 
 @machine_router.get('/{id}',response_model=Machine,description="Devuelve la información de una sola máquina")
-def get_machine(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], id: int = Path(ge=1)) -> Machine:
+def get_machine( id: int = Path(ge=1)) -> Machine:
     db = SessionLocal()
-    payload = auth_handler.decode_token(credentials.credentials)
-    if payload:
-        role_user = payload.get("user.role")
-        status_user = payload.get("user.status")
-        if role_user >= 3:
-            if status_user:
-                element=  MachineRepository(db).get_machine_by_id(id)
-                if not element:        
-                    return JSONResponse(
-                        content={            
-                            "message": "The requested machine was not found",            
-                            "data": None        
-                            }, 
-                        status_code=status.HTTP_404_NOT_FOUND
-                        )    
-                return JSONResponse(
-                    content=jsonable_encoder(element),                        
-                    status_code=status.HTTP_200_OK
-                    )
-            else:
-                return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_403_FORBIDDEN)
-        else:
-            return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
+    element=  MachineRepository(db).get_machine_by_id(id)
+    if not element:        
+        return JSONResponse(
+            content={            
+                "message": "The requested machine was not found",            
+                "data": None        
+                }, 
+            status_code=status.HTTP_404_NOT_FOUND
+            )    
+    return JSONResponse(
+        content=jsonable_encoder(element),                        
+        status_code=status.HTTP_200_OK
+        )
 
 @machine_router.post('',response_model=dict,description="Crea una nueva máquina")
 def create_machine(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], machine: Machine = Body()) -> dict:
@@ -65,7 +45,7 @@ def create_machine(credentials: Annotated[HTTPAuthorizationCredentials,Depends(s
     if payload:
         role_user = payload.get("user.role")
         status_user = payload.get("user.status")
-        if role_user >= 3:
+        if role_user > 3:
             if status_user:
                 new_machine = MachineRepository(db).create_new_machine(machine)
                 return JSONResponse(
@@ -87,7 +67,7 @@ def remove_machine(credentials: Annotated[HTTPAuthorizationCredentials,Depends(s
     if payload:
         role_user = payload.get("user.role")
         status_user = payload.get("user.status")
-        if role_user >= 3:
+        if role_user > 3:
             if status_user:
                 element = MachineRepository(db).delete_machine(id)
                 if not element:        
@@ -117,7 +97,7 @@ def update_machine(credentials: Annotated[HTTPAuthorizationCredentials,Depends(s
     if payload:
         role_user = payload.get("user.role")
         status_user = payload.get("user.status")
-        if role_user >= 3:
+        if role_user > 3:
             if status_user:
                 updated_machine = MachineRepository(db).update_machine(id, machine)
                 if not updated_machine:

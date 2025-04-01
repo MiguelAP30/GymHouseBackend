@@ -17,18 +17,10 @@ dificulty_router = APIRouter(tags=['Dificultades'])
 #CRUD dificulty
 
 @dificulty_router.get('',response_model=List[Dificulty],description="Devuelve todas las dificultades")
-def get_dificulty(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)])-> List[Dificulty]:
+def get_dificulty()-> List[Dificulty]:
     db= SessionLocal()
-    payload = auth_handler.decode_token(credentials.credentials)
-    if payload:
-        role_current_user = payload.get("user.role")
-        user_status = payload.get("user.status")
-        if role_current_user < 2:
-            return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
-        if user_status:
-            result = DificultyRepository(db).get_all_dificulty()
-            return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
-        return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
+    result = DificultyRepository(db).get_all_dificulty()
+    return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
 
 @dificulty_router.post('',response_model=Dificulty,description="Crea una nueva dificultad")
 def create_dificulty(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], dificulty: Dificulty = Body()) -> dict:
@@ -79,18 +71,21 @@ def update_dificulty(credentials: Annotated[HTTPAuthorizationCredentials,Depends
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
 @dificulty_router.get('/{id}',response_model=Dificulty,description="Devuelve una dificultad específica")
-def get_dificulty_by_id(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], id: int = Path(ge=1)) -> dict:
+def get_dificulty_by_id(id: int = Path(ge=1)) -> dict:
     db = SessionLocal()
-    payload = auth_handler.decode_token(credentials.credentials)
-    if payload:
-        role_current_user = payload.get("user.role")
-        status_user = payload.get("user.status")
-        if role_current_user < 2:
-            return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
-        if status_user:
-            result = DificultyRepository(db).get_dificulty_by_id(id)
-            return JSONResponse(content={"message": "The dificulty was successfully found", "data": jsonable_encoder(result)}, status_code=status.HTTP_200_OK)
-        return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
+    element = DificultyRepository(db).get_dificulty_by_id(id)
+    if not element:        
+        return JSONResponse(
+            content={            
+                "message": "The requested exercise was not found",            
+                "data": None        
+                }, 
+            status_code=status.HTTP_404_NOT_FOUND
+            )    
+    return JSONResponse(
+        content=jsonable_encoder(element),                        
+        status_code=status.HTTP_200_OK
+        )
 
 @dificulty_router.post('/init', response_model=dict, description="Inicializa dificultades específicas en la base de datos")
 def init_dificulty(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)]) -> dict:
@@ -99,7 +94,7 @@ def init_dificulty(credentials: Annotated[HTTPAuthorizationCredentials,Depends(s
     if payload:
         role_current_user = payload.get("user.role")
         status_user = payload.get("user.status")
-        if role_current_user < 2:
+        if role_current_user < 4:
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         if status_user:
             dificulty_data = [
@@ -115,7 +110,6 @@ def init_dificulty(credentials: Annotated[HTTPAuthorizationCredentials,Depends(s
                     new_dificulty = dificulties(**dificulty)
                     db.add(new_dificulty)
                     created_dificulties.append(new_dificulty)
-            
             db.commit()
             return JSONResponse(
                 content={

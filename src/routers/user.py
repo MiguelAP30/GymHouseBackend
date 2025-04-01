@@ -28,7 +28,7 @@ def get_users(credentials: Annotated[HTTPAuthorizationCredentials,Depends(securi
         result = UserRepository(db).get_all_users()
         return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
 
-@user_router.put('/update/{email}',response_model=dict,description="Updates specific user")
+@user_router.put('/{email}',response_model=dict,description="Updates specific user")
 def update_user(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], email: str = Path(min_length=5), user: UpdateUser = Body()) -> dict:
     payload = auth_handler.decode_token(credentials.credentials)
     db = SessionLocal()
@@ -84,7 +84,7 @@ def remove_user(credentials: Annotated[HTTPAuthorizationCredentials,Depends(secu
         return JSONResponse(content=jsonable_encoder(element), status_code=status.HTTP_200_OK)
     return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@user_router.put('/user_role/{email}',response_model=dict,description="Actualiza el rol del usuario en el sistema")
+@user_router.put('/role/{email}',response_model=dict,description="Actualiza el rol del usuario en el sistema")
 def update_role(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], email: str = Path(min_length=5), role_id: int = Query(...)) -> dict:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
