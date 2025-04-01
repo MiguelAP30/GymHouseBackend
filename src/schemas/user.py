@@ -4,7 +4,7 @@ from typing import List, Optional
 class User(BaseModel):
     email: EmailStr = Field(min_length=6, title="Email del usuario", max_length=250, example="hola@gmail.com")
     id_number: str = Field(min_length=6, title="Numero de identificacion del usuario", max_length=20, example="123456789")
-    password: str = Field(min_length=6,title="Contraseña del usuario", max_length=60, example="123456")
+    password: str = Field(min_length=6,title="Contraseña del usuario", max_length=255, example="123456")
     user_name: Optional[str] = Field(default=None, min_length=6, title="Nombre de usuario", max_length=50, example="hola123")
     name: str = Field(min_length=2, title="Nombre del usuario", max_length=50, example="Miguel Angel")
     phone: str = Field(min_length=8, title="Telefono del usuario", max_length=20, example="12345678")
@@ -19,6 +19,15 @@ class User(BaseModel):
 class UserLogin (BaseModel):
     email: EmailStr = Field(min_length=6, max_length=64, alias="email", title="Correo del usuario")
     password: str = Field(min_length=6, title="Contraseña del usuario")
+
+class ChangePassword(BaseModel):
+    current_password: str = Field(min_length=6, title="Contraseña actual del usuario")
+    new_password: str = Field(min_length=6, title="Nueva contraseña del usuario")
+
+class ResetPassword(BaseModel):
+    email: EmailStr = Field(min_length=6, max_length=64, title="Correo del usuario")
+    new_password: str = Field(min_length=6, title="Nueva contraseña del usuario")
+    reset_token: str = Field(title="Token de restablecimiento de contraseña")
 
 
 

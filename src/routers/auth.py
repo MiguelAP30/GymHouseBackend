@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body, Depends, Query, Path, Security, status 
+from fastapi import APIRouter, Body, Depends, Query, Path, Security, status, HTTPException
 from fastapi.responses import JSONResponse 
 from typing import Annotated, List 
 from fastapi.security import HTTPAuthorizationCredentials 
@@ -6,8 +6,12 @@ from fastapi.encoders import jsonable_encoder
 from src.repositories.user import UserRepository 
 from src.repositories.auth import AuthRepository 
 from src.config.database import SessionLocal 
-from src.schemas.user import User as UserCreateSchema 
-from src.schemas.user import UserLogin as UserLoginSchema 
+from src.schemas.user import (
+    User as UserCreateSchema,
+    UserLogin as UserLoginSchema,
+    ChangePassword,
+    ResetPassword
+)
 from src.auth.has_access import has_access, security    
 from src.auth import auth_handler
 
@@ -32,8 +36,8 @@ def register_user(user: UserCreateSchema = Body()) -> dict:
 
 @auth_router.post("/login",tags=["Autorización"], response_model=dict, description="Autenticar un usuario") 
 def login_user(user: UserLoginSchema) -> dict: 
-    access_token, refresh_token = AuthRepository().login_user(user)
     try:
+        access_token, refresh_token = AuthRepository().login_user(user)
         return JSONResponse(
             content={
                 "access_token": access_token,
@@ -41,13 +45,16 @@ def login_user(user: UserLoginSchema) -> dict:
             },
             status_code=status.HTTP_200_OK,
         )
-    
     except HTTPException as e:
-        # Manejar cualquier excepción lanzada durante la autenticación
         return JSONResponse(
             content={"message": e.detail},
             status_code=e.status_code,
-        )  
+        )
+    except Exception as e:
+        return JSONResponse(
+            content={"message": str(e)},
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 @auth_router.get("/refresh_token", tags=["Autorización"], response_model=dict, description="Crear un nuevo token con tiempo de vida extendido") 
 def refresh_token(credentials: HTTPAuthorizationCredentials = Security(security)) -> dict: 
@@ -74,3 +81,58 @@ def get_user_data(credentials: HTTPAuthorizationCredentials = Security(security)
         
     except Exception as err:
         return {"message": str(err), "data": None}
+
+@auth_router.post("/change_password", tags=["Autorización"], response_model=dict, description="Cambiar la contraseña del usuario autenticado")
+def change_password(
+    credentials: HTTPAuthorizationCredentials = Security(security),
+    password_data: ChangePassword = Body()
+) -> dict:
+    try:
+        user_data = auth_handler.decode_token(credentials.credentials)
+        email = user_data.get("sub")
+        result = AuthRepository().change_password(
+            email=email,
+            current_password=password_data.current_password,
+            new_password=password_data.new_password
+        )
+        return JSONResponse(
+            content=result,
+            status_code=status.HTTP_200_OK
+        )
+    except Exception as err:
+        return JSONResponse(
+            content={"message": str(err)},
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+
+@auth_router.post("/forgot_password", tags=["Autorización"], response_model=dict, description="Solicitar token para restablecer contraseña")
+def forgot_password(email: str = Body(...)) -> dict:
+    try:
+        result = AuthRepository().generate_reset_token(email)
+        return JSONResponse(
+            content=result,
+            status_code=status.HTTP_200_OK
+        )
+    except Exception as err:
+        return JSONResponse(
+            content={"message": str(err)},
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+
+@auth_router.post("/reset_password", tags=["Autorización"], response_model=dict, description="Restablecer la contraseña usando el token")
+def reset_password(password_data: ResetPassword = Body()) -> dict:
+    try:
+        result = AuthRepository().reset_password(
+            email=password_data.email,
+            new_password=password_data.new_password,
+            reset_token=password_data.reset_token
+        )
+        return JSONResponse(
+            content=result,
+            status_code=status.HTTP_200_OK
+        )
+    except Exception as err:
+        return JSONResponse(
+            content={"message": str(err)},
+            status_code=status.HTTP_400_BAD_REQUEST
+        )

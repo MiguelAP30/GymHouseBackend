@@ -7,7 +7,7 @@ class User(Base):
 
     email = Column(String(length=250), primary_key=True)
     id_number = Column(String(length=20))
-    password = Column(String(length=60))
+    password = Column(String(length=255))
     user_name = Column(String(length=50))
     name = Column(String(length=80))
     phone = Column(String(length=20))

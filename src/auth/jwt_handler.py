@@ -10,10 +10,15 @@ class JWTHandler:
         self.algorithm = algorithm
     
     def hash_password(self, password: str) -> str:        
-        return bcrypt.hashpw(password=password.encode("utf-8"),salt=bcrypt.gensalt())
+        salt = bcrypt.gensalt()
+        hashed = bcrypt.hashpw(password.encode("utf-8"), salt)
+        return hashed.decode("utf-8")
     
-    def verify_password(self,password: str,hashed_password: str) -> bool:        
-        return bcrypt.checkpw(password=password.encode("utf-8"), hashed_password=hashed_password.encode("utf-8"),)
+    def verify_password(self, password: str, hashed_password: str) -> bool:        
+        return bcrypt.checkpw(
+            password.encode("utf-8"),
+            hashed_password.encode("utf-8")
+        )
 
     def encode_token(self, user):        
         payload = {            
@@ -64,3 +69,19 @@ class JWTHandler:
             raise HTTPException(status_code=401, detail="Refresh token expired")        
         except jwt.InvalidTokenError:            
             raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+    def encode_reset_token(self, user: dict) -> str:
+        payload = {
+            "sub": user.email,
+            "exp": datetime.utcnow() + timedelta(hours=1)  # Token válido por 1 hora
+        }
+        return jwt.encode(payload, self.secret, algorithm=self.algorithm)
+
+    def verify_reset_token(self, token: str, email: str) -> bool:
+        try:
+            payload = jwt.decode(token, self.secret, algorithms=[self.algorithm])
+            return payload["sub"] == email
+        except jwt.ExpiredSignatureError:
+            return False
+        except jwt.JWTError:
+            return False

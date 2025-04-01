@@ -60,3 +60,61 @@ class AuthRepository:
         access_token = auth_handler.encode_token(check_user)
         refresh_token = auth_handler.encode_refresh_token(check_user)
         return access_token, refresh_token
+
+    def change_password(self, email: str, current_password: str, new_password: str) -> dict:
+        db = SessionLocal()
+        user = UserRepository(db).get_user_by_email(email=email)
+        
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Usuario no encontrado",
+            )
+            
+        if not auth_handler.verify_password(current_password, user.password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Contraseña actual incorrecta",
+            )
+            
+        hashed_password = auth_handler.hash_password(password=new_password)
+        user.password = hashed_password
+        db.commit()
+        db.refresh(user)
+        return {"message": "Contraseña actualizada exitosamente"}
+
+    def reset_password(self, email: str, new_password: str, reset_token: str) -> dict:
+        db = SessionLocal()
+        user = UserRepository(db).get_user_by_email(email=email)
+        
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Usuario no encontrado",
+            )
+            
+        # Verificar el token de restablecimiento
+        if not auth_handler.verify_reset_token(reset_token, email):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token de restablecimiento inválido o expirado",
+            )
+            
+        hashed_password = auth_handler.hash_password(password=new_password)
+        user.password = hashed_password
+        db.commit()
+        db.refresh(user)
+        return {"message": "Contraseña restablecida exitosamente"}
+
+    def generate_reset_token(self, email: str) -> dict:
+        db = SessionLocal()
+        user = UserRepository(db).get_user_by_email(email=email)
+        
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Usuario no encontrado",
+            )
+            
+        reset_token = auth_handler.encode_reset_token(user)
+        return {"reset_token": reset_token}
