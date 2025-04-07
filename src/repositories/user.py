@@ -23,7 +23,12 @@ class UserRepository():
         return element
 
     def create_new_user(self, user:User ) -> dict:
-        new_user = users(**user.model_dump())
+        # Crear un diccionario con los datos del usuario, excluyendo el campo 'message'
+        user_data = user.model_dump()
+        if 'message' in user_data:
+            del user_data['message']
+            
+        new_user = users(**user_data)
         self.db.add(new_user)
         
         self.db.commit()

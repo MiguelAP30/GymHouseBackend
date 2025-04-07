@@ -14,29 +14,72 @@ from src.schemas.user import (
 )
 from src.auth.has_access import has_access, security    
 from src.auth import auth_handler
+import traceback
 
 auth_router = APIRouter()
 
-@auth_router.post( "/register", tags=["Autorización"], response_model=dict, description="Registrar un nuevo usuario") 
+@auth_router.post("/verify_email", tags=["Autorización"], response_model=dict, description="Verificar el email del usuario")
+def verify_email(email: str = Body(...), verification_code: str = Body(...)) -> dict:
+    try:
+        auth_repo = AuthRepository()
+        result = auth_repo.verify_email(email, verification_code)
+        return result
+    except Exception as e:
+        error_details = traceback.format_exc()
+        print(f"Error al verificar email: {str(e)}")
+        print(f"Detalles del error: {error_details}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+@auth_router.post("/register", tags=["Autorización"], response_model=dict, description="Registrar un nuevo usuario") 
 def register_user(user: UserCreateSchema = Body()) -> dict: 
     try: 
-        new_user = AuthRepository().register_user(user) 
+        auth_repo = AuthRepository()
+        new_user = auth_repo.register_user(user) 
+        # Obtener el mensaje del objeto de usuario
+        message = getattr(new_user, 'message', "Usuario registrado exitosamente. Por favor verifica tu email.")
+        
+        # Convertir el objeto a diccionario para la respuesta
+        user_dict = jsonable_encoder(new_user)
+        
         return JSONResponse( 
             content={ 
-                "message": "The user was successfully registered", 
-                "data": jsonable_encoder(new_user),
+                "message": message, 
+                "data": user_dict,
                 }, 
                 status_code=status.HTTP_201_CREATED, 
             ) 
-    except Exception as err: 
-        return JSONResponse( 
-            content={"message": str(err), "data": None}, 
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, 
+    except HTTPException as he:
+        raise he
+    except Exception as err:
+        error_details = traceback.format_exc()
+        print(f"Error al registrar usuario: {str(err)}")
+        print(f"Detalles del error: {error_details}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(err)
         )
 
-@auth_router.post("/login",tags=["Autorización"], response_model=dict, description="Autenticar un usuario") 
+@auth_router.post("/login", tags=["Autorización"], response_model=dict, description="Autenticar un usuario") 
 def login_user(user: UserLoginSchema) -> dict: 
     try:
+        db = SessionLocal()
+        check_user = UserRepository(db).get_user_by_email(email=user.email)
+        
+        if check_user is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Credenciales inválidas"
+            )
+            
+        if not check_user.is_verified:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Por favor verifica tu email antes de iniciar sesión"
+            )
+            
         access_token, refresh_token = AuthRepository().login_user(user)
         return JSONResponse(
             content={
@@ -135,4 +178,24 @@ def reset_password(password_data: ResetPassword = Body()) -> dict:
         return JSONResponse(
             content={"message": str(err)},
             status_code=status.HTTP_400_BAD_REQUEST
+        )
+
+@auth_router.post("/resend-verification", tags=["Autorización"], response_model=dict, description="Reenviar el código de verificación al correo del usuario")
+def resend_verification_code(email: str = Body(...)) -> dict:
+    try:
+        auth_repo = AuthRepository()
+        result = auth_repo.resend_verification_code(email)
+        return JSONResponse(
+            content=result,
+            status_code=status.HTTP_200_OK
+        )
+    except HTTPException as he:
+        raise he
+    except Exception as err:
+        error_details = traceback.format_exc()
+        print(f"Error al reenviar código de verificación: {str(err)}")
+        print(f"Detalles del error: {error_details}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(err)
         )

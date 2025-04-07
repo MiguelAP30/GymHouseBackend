@@ -15,6 +15,9 @@ class User(BaseModel):
     start_date: Optional[str] = Field(default=None, title="Fecha de inicio del usuario", example="2021-11-12")
     final_date: Optional[str] = Field(default=None, title="Fecha de finalizacion del usuario", example="2021-12-12")
     role_id: Optional[int] = Field(default= 1, title="Rol del usuario", ge=1, example=4)
+    is_verified: Optional[bool] = Field(default=False, title="Estado de verificación del usuario", example=False)
+    verification_code: Optional[str] = Field(default=None, title="Código de verificación", example=None)
+    message: Optional[str] = Field(default=None, title="Mensaje personalizado", example=None)
 
 class UserLogin (BaseModel):
     email: EmailStr = Field(min_length=6, max_length=64, alias="email", title="Correo del usuario")

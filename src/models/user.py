@@ -18,6 +18,8 @@ class User(Base):
     start_date = Column(Date)
     final_date = Column(Date)
     role_id = Column(Integer, ForeignKey("roles.id"))
+    is_verified = Column(Boolean, default=False)
+    verification_code = Column(String(length=6), nullable=True)
 
     roles = relationship("Role", back_populates="users")
     training_plans = relationship("TrainingPlan", back_populates="users")
