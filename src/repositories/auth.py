@@ -151,41 +151,85 @@ class AuthRepository:
         db.refresh(user)
         return {"message": "Contraseña actualizada exitosamente"}
 
-    def reset_password(self, email: str, new_password: str, reset_token: str) -> dict:
-        db = SessionLocal()
-        user = UserRepository(db).get_user_by_email(email=email)
-        
-        if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Usuario no encontrado",
-            )
+    def generate_reset_code(self, email: str) -> dict:
+        try:
+            # Verificar si el usuario existe
+            user = self.db.query(UserModel).filter(UserModel.email == email).first()
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Usuario no encontrado"
+                )
             
-        # Verificar el token de restablecimiento
-        if not auth_handler.verify_reset_token(reset_token, email):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token de restablecimiento inválido o expirado",
-            )
+            # Generar código de restablecimiento
+            reset_code = self.generate_verification_code()
             
-        hashed_password = auth_handler.hash_password(password=new_password)
-        user.password = hashed_password
-        db.commit()
-        db.refresh(user)
-        return {"message": "Contraseña restablecida exitosamente"}
+            # Guardar el código en la base de datos
+            user.verification_code = reset_code
+            self.db.commit()
+            self.db.refresh(user)
+            
+            # Enviar el código por correo
+            email_sent = self.email_service.send_password_reset_code(email, reset_code)
+            
+            if not email_sent:
+                return {
+                    "message": "No se pudo enviar el correo de restablecimiento. Tu código es: " + reset_code,
+                    "reset_code": reset_code
+                }
+            
+            return {
+                "message": "Se ha enviado un código de restablecimiento a tu correo electrónico",
+                "reset_code": None
+            }
+            
+        except HTTPException as he:
+            raise he
+        except Exception as e:
+            self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(e)
+            )
 
-    def generate_reset_token(self, email: str) -> dict:
-        db = SessionLocal()
-        user = UserRepository(db).get_user_by_email(email=email)
-        
-        if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Usuario no encontrado",
-            )
+    def reset_password(self, email: str, new_password: str, reset_code: str) -> dict:
+        try:
+            # Verificar si el usuario existe
+            user = self.db.query(UserModel).filter(UserModel.email == email).first()
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Usuario no encontrado"
+                )
             
-        reset_token = auth_handler.encode_reset_token(user)
-        return {"reset_token": reset_token}
+            # Verificar si el código es correcto
+            if user.verification_code != reset_code:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Código de restablecimiento inválido"
+                )
+            
+            # Hashear la nueva contraseña
+            hashed_password = auth_handler.hash_password(new_password)
+            
+            # Actualizar la contraseña
+            user.password = hashed_password
+            user.verification_code = None  # Limpiar el código después de usarlo
+            
+            # Guardar los cambios
+            self.db.commit()
+            self.db.refresh(user)
+            
+            return {"message": "Contraseña restablecida exitosamente"}
+            
+        except HTTPException as he:
+            raise he
+        except Exception as e:
+            self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(e)
+            )
 
     def resend_verification_code(self, email: str) -> dict:
         try:

@@ -148,36 +148,48 @@ def change_password(
             status_code=status.HTTP_400_BAD_REQUEST
         )
 
-@auth_router.post("/forgot_password", tags=["Autorización"], response_model=dict, description="Solicitar token para restablecer contraseña")
+@auth_router.post("/forgot_password", tags=["Autorización"], response_model=dict, description="Solicitar código para restablecer contraseña")
 def forgot_password(email: str = Body(...)) -> dict:
     try:
-        result = AuthRepository().generate_reset_token(email)
+        auth_repo = AuthRepository()
+        result = auth_repo.generate_reset_code(email)
         return JSONResponse(
             content=result,
             status_code=status.HTTP_200_OK
         )
+    except HTTPException as he:
+        raise he
     except Exception as err:
-        return JSONResponse(
-            content={"message": str(err)},
-            status_code=status.HTTP_400_BAD_REQUEST
+        error_details = traceback.format_exc()
+        print(f"Error al solicitar código de restablecimiento: {str(err)}")
+        print(f"Detalles del error: {error_details}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(err)
         )
 
-@auth_router.post("/reset_password", tags=["Autorización"], response_model=dict, description="Restablecer la contraseña usando el token")
+@auth_router.post("/reset_password", tags=["Autorización"], response_model=dict, description="Restablecer la contraseña usando el código")
 def reset_password(password_data: ResetPassword = Body()) -> dict:
     try:
-        result = AuthRepository().reset_password(
+        auth_repo = AuthRepository()
+        result = auth_repo.reset_password(
             email=password_data.email,
             new_password=password_data.new_password,
-            reset_token=password_data.reset_token
+            reset_code=password_data.reset_code
         )
         return JSONResponse(
             content=result,
             status_code=status.HTTP_200_OK
         )
+    except HTTPException as he:
+        raise he
     except Exception as err:
-        return JSONResponse(
-            content={"message": str(err)},
-            status_code=status.HTTP_400_BAD_REQUEST
+        error_details = traceback.format_exc()
+        print(f"Error al restablecer contraseña: {str(err)}")
+        print(f"Detalles del error: {error_details}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(err)
         )
 
 @auth_router.post("/resend-verification", tags=["Autorización"], response_model=dict, description="Reenviar el código de verificación al correo del usuario")

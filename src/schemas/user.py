@@ -30,7 +30,7 @@ class ChangePassword(BaseModel):
 class ResetPassword(BaseModel):
     email: EmailStr = Field(min_length=6, max_length=64, title="Correo del usuario")
     new_password: str = Field(min_length=6, title="Nueva contraseña del usuario")
-    reset_token: str = Field(title="Token de restablecimiento de contraseña")
+    reset_code: str = Field(title="Código de restablecimiento de contraseña")
 
 class UpdateUser(BaseModel):
     id_number: str = Field(min_length=6, title="Numero de identificacion del usuario", max_length=20, example="123456789")
