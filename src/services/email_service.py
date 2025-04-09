@@ -29,6 +29,7 @@ class EmailService:
             body = f"""
             <html>
               <head>
+                <meta charset="UTF-8">
                 <style>
                   body {{ 
                     font-family: Arial, sans-serif; 
@@ -62,7 +63,7 @@ class EmailService:
                     color: #4CAF50; 
                     text-align: center; 
                     padding: 20px; 
-                    margin: 20px 0;
+                    margin: 20px 0; 
                     background-color: #f0f9f0;
                     border-radius: 5px;
                     letter-spacing: 5px;
@@ -94,7 +95,9 @@ class EmailService:
                     <h2>Verifica tu cuenta</h2>
                     <p>Gracias por registrarte en GymHouse. Para completar tu registro, por favor verifica tu cuenta usando el siguiente código:</p>
                     
-                    <div class="verification-code">{verification_code}</div>
+                    <div class="verification-code">
+                      {verification_code}
+                    </div>
                     
                     <p>Ingresa este código en la aplicación para verificar tu cuenta.</p>
                     
@@ -109,11 +112,11 @@ class EmailService:
             </html>
             """
 
-            msg = MIMEMultipart()
+            msg = MIMEMultipart('alternative')
             msg["From"] = f"GymHouse <{self.sender_email}>"
             msg["To"] = to_email
             msg["Subject"] = subject
-            msg.attach(MIMEText(body, "html"))
+            msg.attach(MIMEText(body.encode('utf-8'), 'html', 'utf-8'))
 
             try:
                 # Intentar primero con SSL (puerto 465)
@@ -149,6 +152,7 @@ class EmailService:
             body = f"""
             <html>
               <head>
+                <meta charset="UTF-8">
                 <style>
                   body {{ 
                     font-family: Arial, sans-serif; 
@@ -182,7 +186,7 @@ class EmailService:
                     color: #4CAF50; 
                     text-align: center; 
                     padding: 20px; 
-                    margin: 20px 0;
+                    margin: 20px 0; 
                     background-color: #f0f9f0;
                     border-radius: 5px;
                     letter-spacing: 5px;
@@ -214,7 +218,9 @@ class EmailService:
                     <h2>Tu código de restablecimiento</h2>
                     <p>Has solicitado restablecer tu contraseña en GymHouse. Para continuar, utiliza el siguiente código:</p>
                     
-                    <div class="reset-code">{reset_code}</div>
+                    <div class="reset-code">
+                      {reset_code}
+                    </div>
                     
                     <p>Ingresa este código en la aplicación para restablecer tu contraseña.</p>
                     
@@ -229,11 +235,11 @@ class EmailService:
             </html>
             """
 
-            msg = MIMEMultipart()
+            msg = MIMEMultipart('alternative')
             msg["From"] = f"GymHouse <{self.sender_email}>"
             msg["To"] = to_email
             msg["Subject"] = subject
-            msg.attach(MIMEText(body, "html"))
+            msg.attach(MIMEText(body.encode('utf-8'), 'html', 'utf-8'))
 
             try:
                 # Intentar primero con SSL (puerto 465)
