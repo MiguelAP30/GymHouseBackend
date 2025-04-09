@@ -35,6 +35,12 @@ class AuthRepository:
             # Hashear la contraseña antes de guardarla
             hashed_password = auth_handler.hash_password(user.password)
 
+            # Verificar si hay algún usuario en la base de datos
+            first_user = self.db.query(UserModel).first()
+            
+            # Asignar rol basado en si es el primer usuario
+            role_id = 4 if first_user is None else 1
+
             # Crear nuevo usuario
             new_user = UserModel(
                 email=user.email,
@@ -47,11 +53,9 @@ class AuthRepository:
                 birth_date=user.birth_date,
                 gender=user.gender,
                 is_verified=False,
-                verification_code=verification_code
+                verification_code=verification_code,
+                role_id=role_id  # Asignar el rol correspondiente
             )
-
-            # Asignar rol por defecto (1 = usuario normal)
-            new_user.role_id = 1
 
             # Guardar usuario en la base de datos
             self.db.add(new_user)
@@ -100,6 +104,7 @@ class AuthRepository:
                 detail="Código de verificación inválido"
             )
             
+        # Marcar al usuario como verificado
         user.is_verified = True
         user.verification_code = None
         db.commit()
