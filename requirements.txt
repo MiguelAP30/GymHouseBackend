@@ -16,6 +16,8 @@ kiwisolver==1.4.5
 packaging==24.1
 pefile==2024.8.26
 pillow==10.4.0
+psycopg2==2.9.10
+psycopg2-binary==2.9.10
 pyinstaller==6.10.0
 pyinstaller-hooks-contrib==2024.8
 PyJWT==2.10.0
