@@ -1,0 +1,31 @@
+services:
+  test:
+    container_name: gym_house_test
+    image: img-gym_house:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - db
+    command: pytest tests/ -v
+
+  db:
+    image: postgres:latest
+    container_name: gym_house_db
+    restart: no
+    ports:
+      - "5432:5432"
+    
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+
+volumes:
+  gym_house_db_vol: 

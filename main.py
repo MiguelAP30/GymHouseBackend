@@ -1,3 +1,6 @@
+"""
+Aplicación principal de GymHouseBackend.
+"""
 from fastapi import FastAPI, Body, Path
 from src.middlewares.error_handler import ErrorHandler
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,9 +33,11 @@ from src.routers.notification import notification_router
 from src.config.database import Base, engine, SessionLocal
 from src.config.database_init import init_data
 
+import sys
 
-# Crear las tablas en la base de datos
-Base.metadata.create_all(bind=engine)
+# Crear las tablas en la base de datos solo si no estamos en modo de prueba
+if "pytest" not in sys.modules:
+    Base.metadata.create_all(bind=engine)
 
 # Inicializar datos en la base de datos
 def startup_event():
