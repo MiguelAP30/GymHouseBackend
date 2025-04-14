@@ -6,13 +6,13 @@ from src.middlewares.error_handler import ErrorHandler
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from src.routers.exercise_per_week_day import exercise_per_week_day_router
+from src.routers.workout_day_exercise import workout_day_exercise_router
 from src.routers.exercise import exercise_router
 from src.routers.machine import machine_router
 from src.routers.muscle import muscle_router
 from src.routers.role import role_router
 from src.routers.tag_of_training_plan import tag_of_training_plan_router
-from src.routers.detailed_exercise import detailed_exercise_router
+from src.routers.exercise_configuration import exercise_configuration_router
 from src.routers.training_plan import training_plan_router
 from src.routers.user import user_router
 from src.routers.week_day import week_day_router
@@ -108,8 +108,8 @@ app.include_router(prefix="/exercise", router= exercise_router)
 app.include_router(prefix="/exercise_muscle", router= exercise_muscle_router)
 app.include_router(prefix="/tag_of_training_plan", router= tag_of_training_plan_router)
 app.include_router(prefix="/training_plan", router= training_plan_router)
-app.include_router(prefix="/detailed_exercise", router= detailed_exercise_router)
-app.include_router(prefix="/exercise_per_week_day", router= exercise_per_week_day_router)
+app.include_router(prefix="/exercise_configuration", router= exercise_configuration_router)
+app.include_router(prefix="/workout_day_exercise", router= workout_day_exercise_router)
 app.include_router(prefix="/user_gym", router= user_gym_router)
 app.include_router(prefix="/star", router= star_router)
 app.include_router(prefix="/profile", router= profile_router)

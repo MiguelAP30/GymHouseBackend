@@ -1,9 +1,10 @@
 from pydantic import BaseModel, Field, validator, model_validator
 from typing import List, Optional
 
-class DetailedExercise(BaseModel):
-    id: Optional[int] = Field(default=None, title="Id del ejercicio detallado")
-    exercice_muscle_id: int = Field(title="Id de la tabla de ejercicios musculos")
+class ExerciseConfiguration(BaseModel):
+    id: Optional[int] = Field(default=None, title="Id de la configuración del ejercicio")
+    exercise_id: int = Field(title="Id del ejercicio")
+    workout_day_exercise_id: int = Field(title="Id del ejercicio por día de la semana")
     sets: int = Field(ge=1,title="Cantidad de series", le=10)
     reps: int = Field(ge=1,title="Cantidad de repeticiones", le=100)
     rest: float = Field(ge=1, title="Tiempo de descanso", le=1000)
@@ -29,7 +30,8 @@ class DetailedExercise(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
-                "exercice_muscle_id": 1,
+                "exercise_id": 1,
+                "workout_day_exercise_id": 1,
                 "sets": 3,
                 "reps": 10,
                 "rest": 60.0

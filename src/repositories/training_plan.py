@@ -2,6 +2,8 @@ from typing import List
 from src.schemas.training_plan import TrainingPlan
 from src.models.training_plan import TrainingPlan as training_plans
 from src.models.user import User
+from src.models.workout_day_exercise import WorkoutDayExercise as WorkoutDayExerciseModel
+from src.models.week_day import WeekDay as WeekDayModel
 
 class TrainingPlanRepository():
     def __init__(self, db) -> None:
@@ -41,10 +43,24 @@ class TrainingPlanRepository():
         return element
 
     def create_new_training_plan(self, training_plan:TrainingPlan ) -> dict:
+        # Crear el nuevo plan de entrenamiento
         new_training_plan = training_plans(**training_plan.model_dump())
         self.db.add(new_training_plan)
         self.db.commit()
         self.db.refresh(new_training_plan)
+
+        # Obtener todos los días de la semana
+        week_days = self.db.query(WeekDayModel).all()
+
+        # Crear un workout_day_exercise para cada día de la semana
+        for week_day in week_days:
+            new_workout_day_exercise = WorkoutDayExerciseModel(
+                week_day_id=week_day.id,
+                training_plan_id=new_training_plan.id
+            )
+            self.db.add(new_workout_day_exercise)
+
+        self.db.commit()
         return new_training_plan
 
     def update_training_plan(self, id: int, training_plan: TrainingPlan, user: str) -> dict:

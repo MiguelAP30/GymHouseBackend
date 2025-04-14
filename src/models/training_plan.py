@@ -12,7 +12,7 @@ class TrainingPlan(Base):
     user_email = Column(String(length=200), ForeignKey("users.email"))
     is_visible = Column(Boolean, default=False)
 
-    exercises_per_week_days = relationship("ExercisePerWeekDay", back_populates="training_plans")
+    workout_day_exercises = relationship("WorkoutDayExercise", back_populates="training_plans")
     tags_of_training_plans = relationship("TagOfTrainingPlan", back_populates="training_plans")
     users = relationship("User", back_populates="training_plans")
     comments = relationship("Comment", back_populates="training_plans")

@@ -162,3 +162,30 @@ def init_specific_muscles(credentials: Annotated[HTTPAuthorizationCredentials,De
             )
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
+@specific_muscle_router.get('/with-muscle-info', response_model=dict, description="Obtiene todos los músculos específicos con información de sus músculos generales")
+def get_all_with_muscle_info(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]) -> dict:
+    db = SessionLocal()
+    payload = auth_handler.decode_token(credentials.credentials)
+    if payload:
+        role_user = payload.get("user.role")
+        status_user = payload.get("user.status")
+        if role_user >= 2 and status_user:
+            result = SpecificMuscleRepository(db).get_all_with_muscle_info()
+            return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
+        elif not status_user:
+            return JSONResponse(
+                content={            
+                    "message": "Your account is inactive",            
+                    "data": None        
+                    }, 
+                status_code=status.HTTP_403_FORBIDDEN
+                )
+        else:
+            return JSONResponse(
+                content={            
+                    "message": "You do not have the necessary permissions",            
+                    "data": None        
+                    }, 
+                status_code=status.HTTP_401_UNAUTHORIZED
+                )
+

@@ -8,7 +8,7 @@ class WeekDay(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(length=20))
 
-    exercises_per_week_days = relationship("ExercisePerWeekDay", back_populates="week_days")
+    workout_day_exercises = relationship("WorkoutDayExercise", back_populates="week_days")
 
     def to_dict(self):
         return {c.key: getattr(self, c.key) for c in inspect(self).mapper.column_attrs}

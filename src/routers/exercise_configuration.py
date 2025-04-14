@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Body, Depends, Query, Path, status
 from fastapi.responses import JSONResponse
-from typing import Annotated, List
+from typing import Annotated, List, Optional
 from fastapi import APIRouter
 from src.config.database import SessionLocal 
 from fastapi.encoders import jsonable_encoder
@@ -8,18 +8,16 @@ from src.auth.has_access import security
 from src.auth import auth_handler
 from fastapi.security import HTTPAuthorizationCredentials
 
-from src.schemas.detailed_exercise import DetailedExercise
-from src.repositories.detailed_exercise import DetailedExerciseRepository
-from src.models.detailed_exercise import DetailedExercise as detailed_exercises
+from src.schemas.exercise_configuration import ExerciseConfiguration
+from src.repositories.exercise_configuration import ExerciseConfigurationRepository
+from src.models.exercise_configuration import ExerciseConfiguration as ExerciseConfigurationModel
 
+exercise_configuration_router = APIRouter(tags=['Configuraciones de ejercicios'])
 
+#CRUD exercise_configuration
 
-detailed_exercise_router = APIRouter(tags=['Ejercicios detallados'])
-
-#CRUD detailed_exercise
-
-@detailed_exercise_router.get('',response_model=List[DetailedExercise],description="Devuelve todos los ejercicios detallados")
-def get_detailed_exercise(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)])-> List[DetailedExercise]:
+@exercise_configuration_router.get('',response_model=List[ExerciseConfiguration],description="Devuelve todas las configuraciones de ejercicios")
+def get_exercise_configurations(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)])-> List[ExerciseConfiguration]:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
     if payload:
@@ -28,13 +26,15 @@ def get_detailed_exercise(credentials: Annotated[HTTPAuthorizationCredentials,De
         if role_current_user < 2:
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         if user_status:
-            current_user = payload.get("sub")
-            result = DetailedExerciseRepository(db).get_all_detailed_exercise(current_user)
+            result = ExerciseConfigurationRepository(db).get_all_exercise_configurations()
             return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@detailed_exercise_router.post('',response_model=DetailedExercise,description="Crea un nuevo ejercicio detallado")
-def create_detailed_exercise(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], detailed_exercise: DetailedExercise = Body()) -> dict:
+@exercise_configuration_router.post('',response_model=ExerciseConfiguration,description="Crea una nueva configuración de ejercicio")
+def create_exercise_configuration(
+    credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], 
+    exercise_configuration: ExerciseConfiguration = Body()
+) -> dict:
     db= SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
     if payload:
@@ -43,18 +43,20 @@ def create_detailed_exercise(credentials: Annotated[HTTPAuthorizationCredentials
         if role_current_user < 2:
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         if status_user:
-            new_detailed_exercise = DetailedExerciseRepository(db).create_new_detailed_exercise(detailed_exercise)
+            new_exercise_configuration = ExerciseConfigurationRepository(db).create_new_exercise_configuration(
+                exercise_configuration
+            )
             return JSONResponse(
                 content={        
-                "message": "The detailed exercise was successfully created",        
-                "data": jsonable_encoder(new_detailed_exercise)    
+                "message": "The exercise configuration was successfully created",        
+                "data": jsonable_encoder(new_exercise_configuration)    
                 }, 
                 status_code=status.HTTP_201_CREATED
             )
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@detailed_exercise_router.delete('/{id}',response_model=dict,description="Elimina un ejercicio detallado específico")
-def remove_detailed_exercise(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], id: int = Path(ge=1)) -> dict:
+@exercise_configuration_router.delete('/{id}',response_model=dict,description="Elimina una configuración de ejercicio específica")
+def remove_exercise_configuration(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], id: int = Path(ge=1)) -> dict:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
     if payload:
@@ -64,18 +66,18 @@ def remove_detailed_exercise(credentials: Annotated[HTTPAuthorizationCredentials
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         if status_user:
             current_user = payload.get("sub")
-            DetailedExerciseRepository(db).delete_detailed_exercise(id, current_user)
+            ExerciseConfigurationRepository(db).delete_exercise_configuration(id, current_user)
             return JSONResponse(
                 content={        
-                "message": "The detailed exercise was successfully deleted",        
+                "message": "The exercise configuration was successfully deleted",        
                 "data": None    
                 }, 
                 status_code=status.HTTP_200_OK
             )
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@detailed_exercise_router.get('/{id}',response_model=DetailedExercise,description="Devuelve un ejercicio detallado específico")
-def get_detailed_exercise_by_id(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], id: int = Path(ge=1)) -> dict:
+@exercise_configuration_router.get('/{id}',response_model=ExerciseConfiguration,description="Devuelve una configuración de ejercicio específica")
+def get_exercise_configuration_by_id(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], id: int = Path(ge=1)) -> dict:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
     if payload:
@@ -85,11 +87,11 @@ def get_detailed_exercise_by_id(credentials: Annotated[HTTPAuthorizationCredenti
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         if status_user:
             current_user = payload.get("sub")
-            element=  DetailedExerciseRepository(db).get_detailed_exercise_by_id(id, current_user)
+            element=  ExerciseConfigurationRepository(db).get_exercise_configuration_by_id(id, current_user)
             if not element:        
                 return JSONResponse(
                     content={            
-                        "message": "The requested detailed exercise was not found",            
+                        "message": "The requested exercise configuration was not found",            
                         "data": None        
                         }, 
                     status_code=status.HTTP_404_NOT_FOUND
@@ -100,8 +102,8 @@ def get_detailed_exercise_by_id(credentials: Annotated[HTTPAuthorizationCredenti
                 )
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@detailed_exercise_router.put('/{id}',response_model=DetailedExercise,description="Actualiza un ejercicio detallado específico")
-def update_detailed_exercise(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], id: int = Path(ge=1), detailed_exercise: DetailedExercise = Body()) -> dict:
+@exercise_configuration_router.put('/{id}',response_model=ExerciseConfiguration,description="Actualiza una configuración de ejercicio específica")
+def update_exercise_configuration(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], id: int = Path(ge=1), exercise_configuration: ExerciseConfiguration = Body()) -> dict:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
     if payload:
@@ -111,10 +113,10 @@ def update_detailed_exercise(credentials: Annotated[HTTPAuthorizationCredentials
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         if status_user:
             current_user = payload.get("sub")
-            element = DetailedExerciseRepository(db).update_detailed_exercise(id, current_user, detailed_exercise)
+            element = ExerciseConfigurationRepository(db).update_exercise_configuration(id, current_user, exercise_configuration)
             return JSONResponse(
                 content={        
-                "message": "The detailed exercise was successfully updated",        
+                "message": "The exercise configuration was successfully updated",        
                 "data": jsonable_encoder(element)    
                 }, 
                 status_code=status.HTTP_200_OK

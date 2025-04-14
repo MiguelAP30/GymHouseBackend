@@ -12,7 +12,6 @@ class ExerciseMuscle(Base):
 
     exercises = relationship("Exercise", back_populates="exercises_muscles")
     specific_muscles = relationship("SpecificMuscle", back_populates="exercises_muscles")
-    details_exercises = relationship("DetailedExercise", back_populates="exercises_muscles")
 
     __table_args__ = (UniqueConstraint('exercise_id', 'specific_muscle_id', name='uix_1'), )
 

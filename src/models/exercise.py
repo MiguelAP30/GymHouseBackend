@@ -18,6 +18,7 @@ class Exercise(Base):
     history_pr_exercises = relationship("HistoryPrExercise", back_populates="exercises")
     dificulties = relationship("Dificulty", back_populates="exercises")
     machines = relationship("Machine", back_populates="exercises")
+    exercise_configurations = relationship("ExerciseConfiguration", back_populates="exercises")
 
     def to_dict(self):
         return {c.key: getattr(self, c.key) for c in inspect(self).mapper.column_attrs}
