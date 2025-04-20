@@ -27,3 +27,10 @@ class TrainingPlan(BaseModel):
                 "is_visible": True
             }
         }
+
+class PaginatedTrainingPlanResponse(BaseModel):
+    items: List[TrainingPlan]
+    total: int
+    page: int
+    size: int
+    pages: int

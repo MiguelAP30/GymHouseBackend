@@ -102,6 +102,8 @@ class HistoryPrExerciseRepository():
         if element:
             # Actualizar datos básicos del historial
             element.date = history_pr_exercise_data.date
+            element.notas = history_pr_exercise_data.notas
+            element.tipo_sesion = history_pr_exercise_data.tipo_sesion
             self.db.commit()
             self.db.refresh(element)
         return element
@@ -123,7 +125,7 @@ class HistoryPrExerciseRepository():
         ).all()
         return elements
     
-    def get_history_pr_exercise_by_user_id(self, user_email: str) -> List[HistoryPrExercise]:
+    def get_history_pr_exercise_by_user_email(self, user_email: str) -> List[HistoryPrExercise]:
         """
         Obtiene todos los historiales de ejercicio PR de un usuario específico.
 
@@ -137,7 +139,7 @@ class HistoryPrExerciseRepository():
         elements = self.db.query(history_pr_exercise).filter(history_pr_exercise.user_email == user_email).all()
         return elements
     
-    def get_history_pr_exercise_by_exercise_id_and_user_id(self, exercise_id: int, user_email: str) -> List[HistoryPrExercise]:
+    def get_history_pr_exercise_by_exercise_id_and_user_email(self, exercise_id: int, user_email: str) -> List[HistoryPrExercise]:
         """
         Obtiene todos los historiales de ejercicio PR de un ejercicio y usuario específicos.
 

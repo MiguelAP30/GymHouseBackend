@@ -2,6 +2,7 @@ from typing import List
 from src.schemas.exercise_configuration import ExerciseConfiguration
 from src.models.exercise_configuration import ExerciseConfiguration as ExerciseConfigurationModel
 from src.models.workout_day_exercise import WorkoutDayExercise as WorkoutDayExerciseModel
+from src.models.training_plan import TrainingPlan as TrainingPlanModel
 
 class ExerciseConfigurationRepository():
     def __init__(self, db) -> None:
@@ -17,17 +18,36 @@ class ExerciseConfigurationRepository():
         query = self.db.query(ExerciseConfigurationModel)
         return query.all()
     
-    def get_exercise_configuration_by_id(self, id: int ):
+    def get_exercise_configuration_by_id(self, id: int, user_email: str = None):
         """
         Obtiene un ejercicio detallado por su ID.
 
         Parámetros:
         - id: el ID del ejercicio detallado que se desea obtener.
+        - user_email: email del usuario que está solicitando la configuración (opcional)
 
         Precondición: El parámetro 'id' debe ser un entero válido.
         Postcondición: Devuelve un objeto ExerciseConfiguration que representa el ejercicio detallado con el ID especificado.
         """
         element = self.db.query(ExerciseConfigurationModel).filter(ExerciseConfigurationModel.id == id).first()
+        
+        # Si se proporciona user_email, verificar que el usuario tiene acceso a esta configuración
+        if user_email and element:
+            # Obtener el workout_day_exercise asociado
+            workout_day_exercise = self.db.query(WorkoutDayExerciseModel).filter(
+                WorkoutDayExerciseModel.id == element.workout_day_exercise_id
+            ).first()
+            
+            if workout_day_exercise:
+                # Obtener el plan de entrenamiento asociado
+                training_plan = self.db.query(TrainingPlanModel).filter(
+                    TrainingPlanModel.id == workout_day_exercise.training_plan_id
+                ).first()
+                
+                # Si el usuario no es el dueño del plan de entrenamiento, no devolver la configuración
+                if training_plan and training_plan.user_email != user_email:
+                    return None
+        
         return element
     
     def delete_exercise_configuration(self, id: int ) -> dict:
@@ -41,18 +61,19 @@ class ExerciseConfigurationRepository():
         Postcondición: Elimina el ejercicio detallado con el ID especificado de la base de datos y devuelve un diccionario que contiene los datos del ejercicio eliminado.
         """
         element: ExerciseConfiguration= self.db.query(ExerciseConfigurationModel).filter(ExerciseConfigurationModel.id == id).first()
+        # Guardar los datos antes de eliminar
+        element_data = element.to_dict()
         self.db.delete(element)
-
         self.db.commit()
-        self.db.refresh(element)
-        return element
+        return element_data
 
-    def create_new_exercise_configuration(self, exercise_configuration:ExerciseConfiguration) -> dict:
+    def create_new_exercise_configuration(self, exercise_configuration:ExerciseConfiguration, user_email: str) -> dict:
         """
         Crea un nuevo ejercicio detallado.
 
         Parámetros:
         - exercise_configuration: un objeto ExerciseConfiguration que contiene los datos del nuevo ejercicio a crear.
+        - user_email: email del usuario que está creando la configuración
         
         Precondición: El parámetro 'exercise_configuration' debe ser un objeto ExerciseConfiguration válido.
         Postcondición: Crea un nuevo ejercicio detallado en la base de datos.
@@ -64,6 +85,14 @@ class ExerciseConfigurationRepository():
         
         if not workout_day_exercise:
             raise ValueError(f"El ejercicio por día de la semana con ID {exercise_configuration.workout_day_exercise_id} no existe")
+        
+        # Verificar que el usuario es dueño del workout day exercise
+        training_plan = self.db.query(TrainingPlanModel).filter(
+            TrainingPlanModel.id == workout_day_exercise.training_plan_id
+        ).first()
+        
+        if training_plan.user_email != user_email:
+            raise ValueError(f"No tienes permiso para crear configuraciones para este ejercicio por día de la semana")
         
         new_exercise_configuration = ExerciseConfigurationModel(**exercise_configuration.model_dump())
         self.db.add(new_exercise_configuration)

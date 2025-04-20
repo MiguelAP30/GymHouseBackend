@@ -41,6 +41,8 @@ def create_history_pr_exercise(credentials: Annotated[HTTPAuthorizationCredentia
         if role_current_user < 2:
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         if status_user:
+            current_user = payload.get("sub")
+            history_pr_exercise.user_email = current_user
             new_history_pr_exercise = HistoryPrExerciseRepository(db).create_new_history_pr_exercise(history_pr_exercise)
             return JSONResponse(
                 content={        
@@ -109,8 +111,8 @@ def get_history_pr_exercise_by_exercise_id(credentials: Annotated[HTTPAuthorizat
             return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@history_pr_exercise_router.get('/user/{id}',response_model=List[HistoryPrExercise],description="Devuelve todos los historiales de PR de ejercicios de un usuario específico")
-def get_history_pr_exercise_by_user_id(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], id: int = Path(ge=1)) -> dict:
+@history_pr_exercise_router.get('/user/{email}',response_model=List[HistoryPrExercise],description="Devuelve todos los historiales de PR de ejercicios de un usuario específico")
+def get_history_pr_exercise_by_user_email(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], email: str = Path(min_length=5)) -> dict:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
     if payload:
@@ -120,12 +122,12 @@ def get_history_pr_exercise_by_user_id(credentials: Annotated[HTTPAuthorizationC
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         if user_status:
             current_user = payload.get("sub")
-            result = HistoryPrExerciseRepository(db).get_history_pr_exercise_by_user_id(id, current_user)
+            result = HistoryPrExerciseRepository(db).get_history_pr_exercise_by_user_email(email)
             return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@history_pr_exercise_router.get('/exercise/{id}/user/{id_user}',response_model=List[HistoryPrExercise],description="Devuelve todos los historiales de PR de ejercicios de un ejercicio específico de un usuario específico")
-def get_history_pr_exercise_by_exercise_id_and_user_id(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], id: int = Path(ge=1), id_user: int = Path(ge=1)) -> dict:
+@history_pr_exercise_router.get('/exercise/{id}/user/{email}',response_model=List[HistoryPrExercise],description="Devuelve todos los historiales de PR de ejercicios de un ejercicio específico de un usuario específico")
+def get_history_pr_exercise_by_exercise_id_and_user_email(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], id: int = Path(ge=1), email: str = Path(min_length=5)) -> dict:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
     if payload:
@@ -135,7 +137,7 @@ def get_history_pr_exercise_by_exercise_id_and_user_id(credentials: Annotated[HT
             return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         if user_status:
             current_user = payload.get("sub")
-            result = HistoryPrExerciseRepository(db).get_history_pr_exercise_by_exercise_id_and_user_id(id, id_user, current_user)
+            result = HistoryPrExerciseRepository(db).get_history_pr_exercise_by_exercise_id_and_user_email(id, email)
             return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 

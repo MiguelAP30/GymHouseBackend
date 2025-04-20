@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Body, Depends, Query, Path, status
 from fastapi.responses import JSONResponse
 from typing import Annotated, List
-from src.config.database import SessionLocal
+from src.config.database import SessionLocal, get_db
 from fastapi.encoders import jsonable_encoder
 from src.auth.has_access import security
 from src.auth import auth_handler
 from fastapi.security import HTTPAuthorizationCredentials
-
-from src.schemas.series_pr_exercise import SeriesPrExercise
+from sqlalchemy.orm import Session
+from src.repositories import series_pr_exercise as repository
+from src.schemas.series_pr_exercise import SeriesPrExercise, UpdateSeriesPrExercise
 from src.repositories.series_pr_exercise import SeriesPrExerciseRepository
 
 series_pr_exercise_router = APIRouter(tags=['Series PR de ejercicios'])
@@ -36,7 +37,8 @@ def create_series_pr_exercise(credentials: Annotated[HTTPAuthorizationCredential
         if role_current_user < 2:
             return JSONResponse(content={"message": "No tienes los permisos necesarios", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         if user_status:
-            result = SeriesPrExerciseRepository(db).create_new_series_pr_exercise(series_pr_exercise)
+            current_user = payload.get("sub")
+            result = SeriesPrExerciseRepository(db).create_new_series_pr_exercise(series_pr_exercise, current_user)
             return JSONResponse(
                 content={
                     "message": "La serie PR de ejercicio fue creada exitosamente",
@@ -56,7 +58,8 @@ def remove_series_pr_exercise(credentials: Annotated[HTTPAuthorizationCredential
         if role_current_user < 2:
             return JSONResponse(content={"message": "No tienes los permisos necesarios", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         if user_status:
-            result = SeriesPrExerciseRepository(db).remove_series_pr_exercise(id)
+            current_user = payload.get("sub")
+            result = SeriesPrExerciseRepository(db).remove_series_pr_exercise(id, current_user)
             return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
         return JSONResponse(content={"message": "Tu cuenta está inactiva", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
@@ -74,16 +77,17 @@ def get_series_pr_exercise_by_id(credentials: Annotated[HTTPAuthorizationCredent
             return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
         return JSONResponse(content={"message": "Tu cuenta está inactiva", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@series_pr_exercise_router.put('/{id}', response_model=SeriesPrExercise, description="Actualiza una serie PR de ejercicio específica")
-def update_series_pr_exercise(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)], id: int = Path(ge=1), series_pr_exercise: SeriesPrExercise = Body()) -> dict:
-    db = SessionLocal()
-    payload = auth_handler.decode_token(credentials.credentials)
-    if payload:
-        role_current_user = payload.get("user.role")
-        user_status = payload.get("user.status")
-        if role_current_user < 2:
-            return JSONResponse(content={"message": "No tienes los permisos necesarios", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
-        if user_status:
-            result = SeriesPrExerciseRepository(db).update_series_pr_exercise(id, series_pr_exercise)
-            return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
-        return JSONResponse(content={"message": "Tu cuenta está inactiva", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED) 
+@series_pr_exercise_router.put('/{id}', response_model=SeriesPrExercise, status_code=status.HTTP_200_OK)
+def update_series_pr_exercise(
+    id: int,
+    series_pr_exercise: UpdateSeriesPrExercise,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    try:
+        token = credentials.credentials
+        current_user = auth_handler.decode_token(token)
+        result = repository.update_series_pr_exercise(id, series_pr_exercise, current_user, db)
+        return result
+    except Exception as e:
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"message": str(e)}) 

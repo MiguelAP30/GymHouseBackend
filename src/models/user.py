@@ -1,6 +1,7 @@
-from sqlalchemy import Column, ForeignKey, Integer, Float, Date, String, inspect, Boolean
+from sqlalchemy import Column, ForeignKey, Integer, Float, Date, String, inspect, Boolean, event
 from sqlalchemy.orm import relationship
 from src.config.database import Base
+from datetime import date
 
 class User(Base):
     __tablename__ = "users"
@@ -23,7 +24,7 @@ class User(Base):
 
     roles = relationship("Role", back_populates="users")
     training_plans = relationship("TrainingPlan", back_populates="users")
-    stars = relationship("Star", back_populates="users")
+    likes = relationship("Like", back_populates="users")
     profiles = relationship("Profile", back_populates="users")
     history_pr_exercises = relationship("HistoryPrExercise", back_populates="users")
     gyms = relationship("Gym", back_populates="users")
@@ -33,3 +34,17 @@ class User(Base):
 
     def to_dict(self):
         return {c.key: getattr(self, c.key) for c in inspect(self).mapper.column_attrs}
+
+@event.listens_for(User, 'load')
+def check_final_date(target, context):
+    """
+    Evento que se dispara cuando se carga un usuario.
+    Verifica si la fecha final ha pasado o no está definida y actualiza el rol si es necesario.
+    Solo se aplica a usuarios que no son administradores (rol 4).
+    """
+    if target.role_id != 4 and (target.final_date is None or target.final_date < date.today()):
+        target.role_id = 1  # Cambiar el rol a 1 (rol básico)
+        # Asegurarse de que los cambios se guarden
+        if context.session:
+            context.session.add(target)
+            context.session.commit()

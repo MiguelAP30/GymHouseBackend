@@ -10,7 +10,9 @@ from src.schemas.user import (
     User as UserCreateSchema,
     UserLogin as UserLoginSchema,
     ChangePassword,
-    ResetPassword
+    ResetPassword,
+    UserRegister,
+    EnableAccount
 )
 from src.auth.has_access import has_access, security    
 from src.auth import auth_handler
@@ -34,7 +36,7 @@ def verify_email(email: str = Body(...), verification_code: str = Body(...)) -> 
         )
 
 @auth_router.post("/register", tags=["Autorización"], response_model=dict, description="Registrar un nuevo usuario") 
-def register_user(user: UserCreateSchema = Body()) -> dict: 
+def register_user(user: UserRegister = Body()) -> dict: 
     try: 
         auth_repo = AuthRepository()
         new_user = auth_repo.register_user(user) 
@@ -72,12 +74,6 @@ def login_user(user: UserLoginSchema) -> dict:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Credenciales inválidas"
-            )
-            
-        if not check_user.is_verified:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Por favor verifica tu email antes de iniciar sesión"
             )
             
         access_token, refresh_token = AuthRepository().login_user(user)
@@ -206,6 +202,58 @@ def resend_verification_code(email: str = Body(...)) -> dict:
     except Exception as err:
         error_details = traceback.format_exc()
         print(f"Error al reenviar código de verificación: {str(err)}")
+        print(f"Detalles del error: {error_details}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(err)
+        )
+
+@auth_router.post("/enable_account", tags=["Autorización"], response_model=dict, description="Habilita la cuenta de un usuario")
+def enable_account(account_data: EnableAccount = Body()) -> dict:
+    try:
+        auth_repo = AuthRepository()
+        result = auth_repo.enable_account(
+            email=account_data.email,
+            password=account_data.password
+        )
+        return JSONResponse(
+            content=result,
+            status_code=status.HTTP_200_OK
+        )
+    except HTTPException as he:
+        raise he
+    except Exception as err:
+        error_details = traceback.format_exc()
+        print(f"Error al habilitar la cuenta: {str(err)}")
+        print(f"Detalles del error: {error_details}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(err)
+        )
+
+@auth_router.post("/enable_account_by_email", tags=["Autorización"], response_model=dict, description="Habilitar la cuenta usando el email del token")
+def enable_account_by_email(credentials: HTTPAuthorizationCredentials = Security(security)) -> dict:
+    try:
+        token = credentials.credentials
+        user_data = auth_handler.decode_token(token)
+        email = user_data.get("sub")
+        
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No se pudo obtener el email del token"
+            )
+        
+        result = AuthRepository().enable_account(email=email)
+        return JSONResponse(
+            content=result,
+            status_code=status.HTTP_200_OK
+        )
+    except HTTPException as he:
+        raise he
+    except Exception as err:
+        error_details = traceback.format_exc()
+        print(f"Error al habilitar la cuenta: {str(err)}")
         print(f"Detalles del error: {error_details}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

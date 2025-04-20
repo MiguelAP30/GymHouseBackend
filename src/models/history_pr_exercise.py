@@ -9,6 +9,8 @@ class HistoryPrExercise(Base):
     user_email = Column(String(length=250), ForeignKey("users.email"))
     exercise_id = Column(Integer, ForeignKey("exercises.id"))
     date = Column(Date)
+    notas = Column(String(length=500), nullable=True)
+    tipo_sesion = Column(String(length=50), nullable=True)
 
     users = relationship("User", back_populates="history_pr_exercises")
     exercises = relationship("Exercise", back_populates="history_pr_exercises")

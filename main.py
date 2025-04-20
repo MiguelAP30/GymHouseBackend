@@ -18,7 +18,7 @@ from src.routers.user import user_router
 from src.routers.week_day import week_day_router
 from src.routers.auth import auth_router
 from src.routers.user_gym import user_gym_router
-from src.routers.star import star_router
+from src.routers.like import like_router
 from src.routers.specific_muscle import specific_muscle_router
 from src.routers.profile import profile_router
 from src.routers.history_pr_exercise import history_pr_exercise_router
@@ -111,7 +111,7 @@ app.include_router(prefix="/training_plan", router= training_plan_router)
 app.include_router(prefix="/exercise_configuration", router= exercise_configuration_router)
 app.include_router(prefix="/workout_day_exercise", router= workout_day_exercise_router)
 app.include_router(prefix="/user_gym", router= user_gym_router)
-app.include_router(prefix="/star", router= star_router)
+app.include_router(prefix="/like", router= like_router)
 app.include_router(prefix="/profile", router= profile_router)
 app.include_router(prefix="/history_pr_exercise", router= history_pr_exercise_router)
 app.include_router(prefix="/series_pr_exercise", router= series_pr_exercise_router)

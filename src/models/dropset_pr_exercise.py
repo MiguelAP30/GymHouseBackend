@@ -10,6 +10,7 @@ class DropSetPrExercise(Base):
     serie_pr_exercise_id = Column(Integer, ForeignKey("series_pr_exercises.id"))
     weight = Column(Float)
     reps = Column(Integer)
+    orden_dropset = Column(Integer, nullable=True)
 
     serie_pr_exercise = relationship("SeriesPrExercise", back_populates="dropset_pr_exercises")
 

@@ -62,78 +62,6 @@ class WorkoutDayExerciseRepository:
             
         return workout_day_exercises
 
-    def get_premium_workout_day_exercises(self) -> List[WorkoutDayExercise]:
-        """
-        Obtiene todos los ejercicios por día de la semana para usuarios premium.
-
-        Precondición:
-        - Ninguna.
-
-        Postcondición:
-        - Devuelve una lista de ejercicios correspondientes a usuarios premium.
-        """
-        # Obtenemos los planes de entrenamiento de usuarios premium (role_id = 2)
-        training_plans = self.db.query(TrainingPlanModel).\
-            join(UserModel, TrainingPlanModel.user_email == UserModel.email).\
-            filter(UserModel.role_id == 2).all()
-        
-        # Luego obtenemos los ejercicios por día de la semana para esos planes
-        workout_day_exercises = []
-        for training_plan in training_plans:
-            exercises = self.db.query(WorkoutDayExerciseModel).\
-                filter(WorkoutDayExerciseModel.training_plan_id == training_plan.id).all()
-            workout_day_exercises.extend(exercises)
-            
-        return workout_day_exercises
-
-    def get_gym_workout_day_exercises(self) -> List[WorkoutDayExercise]:
-        """
-        Obtiene todos los ejercicios por día de la semana para usuarios gimnasio.
-
-        Precondición:
-        - Ninguna.
-
-        Postcondición:
-        - Devuelve una lista de ejercicios correspondientes a usuarios gimnasio.
-        """
-        # Obtenemos los planes de entrenamiento de usuarios gimnasio (role_id = 3)
-        training_plans = self.db.query(TrainingPlanModel).\
-            join(UserModel, TrainingPlanModel.user_email == UserModel.email).\
-            filter(UserModel.role_id == 3).all()
-        
-        # Luego obtenemos los ejercicios por día de la semana para esos planes
-        workout_day_exercises = []
-        for training_plan in training_plans:
-            exercises = self.db.query(WorkoutDayExerciseModel).\
-                filter(WorkoutDayExerciseModel.training_plan_id == training_plan.id).all()
-            workout_day_exercises.extend(exercises)
-            
-        return workout_day_exercises
-
-    def get_admin_workout_day_exercises(self) -> List[WorkoutDayExercise]:
-        """
-        Obtiene todos los ejercicios por día de la semana para usuarios administradores.
-
-        Precondición:
-        - Ninguna.
-
-        Postcondición:
-        - Devuelve una lista de ejercicios correspondientes a usuarios administradores.
-        """
-        # Obtenemos los planes de entrenamiento de usuarios administradores (role_id = 4)
-        training_plans = self.db.query(TrainingPlanModel).\
-            join(UserModel, TrainingPlanModel.user_email == UserModel.email).\
-            filter(UserModel.role_id == 4).all()
-        
-        # Luego obtenemos los ejercicios por día de la semana para esos planes
-        workout_day_exercises = []
-        for training_plan in training_plans:
-            exercises = self.db.query(WorkoutDayExerciseModel).\
-                filter(WorkoutDayExerciseModel.training_plan_id == training_plan.id).all()
-            workout_day_exercises.extend(exercises)
-            
-        return workout_day_exercises
-
     def get_workout_day_exercise_by_id(self, id: int) -> WorkoutDayExercise:
         """
         Obtiene un ejercicio por día de la semana y ID específicos.
@@ -185,12 +113,13 @@ class WorkoutDayExerciseRepository:
             filter(WorkoutDayExerciseModel.week_day_id == week_day_id)
         return query.all()
 
-    def create_new_workout_day_exercise(self, workout_day_exercise: WorkoutDayExercise) -> dict:
+    def create_new_workout_day_exercise(self, workout_day_exercise: WorkoutDayExercise, user_email: str) -> dict:
         """
         Crea un nuevo ejercicio por día de la semana.
 
         Parámetros:
         - workout_day_exercise: objeto WorkoutDayExercise que contiene los datos del ejercicio.
+        - user_email: email del usuario que está creando el workout day exercise
 
         Precondición:
         - Ninguna.
@@ -204,18 +133,25 @@ class WorkoutDayExerciseRepository:
         if not training_plan:
             raise ValueError(f"No existe un plan de entrenamiento con id {workout_day_exercise.training_plan_id}")
         
+        # Verificar que el usuario es dueño del training plan
+        if training_plan.user_email != user_email:
+            raise ValueError(f"No tienes permiso para crear ejercicios para este plan de entrenamiento")
+        
         # Verificar que el week_day_id existe
         week_day = self.db.query(WeekDayModel).\
             filter(WeekDayModel.id == workout_day_exercise.week_day_id).first()
         if not week_day:
             raise ValueError(f"No existe un día de la semana con id {workout_day_exercise.week_day_id}")
         
-        # Verificar que el exercise_configuration_id existe si se proporciona
-        if workout_day_exercise.exercise_configuration_id:
-            exercise_configuration = self.db.query(ExerciseConfigurationModel).\
-                filter(ExerciseConfigurationModel.id == workout_day_exercise.exercise_configuration_id).first()
-            if not exercise_configuration:
-                raise ValueError(f"No existe una configuración de ejercicio con id {workout_day_exercise.exercise_configuration_id}")
+        # Verificar si ya existe un workout day exercise con el mismo training_plan_id y week_day_id
+        existing_workout = self.db.query(WorkoutDayExerciseModel).\
+            filter(
+                WorkoutDayExerciseModel.training_plan_id == workout_day_exercise.training_plan_id,
+                WorkoutDayExerciseModel.week_day_id == workout_day_exercise.week_day_id
+            ).first()
+        
+        if existing_workout:
+            raise ValueError(f"Ya existe un ejercicio para el día {workout_day_exercise.week_day_id} en el plan de entrenamiento {workout_day_exercise.training_plan_id}")
         
         new_workout_day_exercise = WorkoutDayExerciseModel(**workout_day_exercise.model_dump())
         self.db.add(new_workout_day_exercise)
@@ -254,16 +190,8 @@ class WorkoutDayExerciseRepository:
             if not week_day:
                 raise ValueError(f"No existe un día de la semana con id {workout_day_exercise.week_day_id}")
         
-        # Verificar que el exercise_configuration_id existe si se está actualizando
-        if workout_day_exercise.exercise_configuration_id:
-            exercise_configuration = self.db.query(ExerciseConfigurationModel).\
-                filter(ExerciseConfigurationModel.id == workout_day_exercise.exercise_configuration_id).first()
-            if not exercise_configuration:
-                raise ValueError(f"No existe una configuración de ejercicio con id {workout_day_exercise.exercise_configuration_id}")
-        
         element.training_plan_id = workout_day_exercise.training_plan_id
         element.week_day_id = workout_day_exercise.week_day_id
-        element.exercise_configuration_id = workout_day_exercise.exercise_configuration_id
         
         self.db.commit()
         self.db.refresh(element)

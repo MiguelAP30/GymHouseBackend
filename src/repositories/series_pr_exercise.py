@@ -1,6 +1,7 @@
 from typing import List
 from src.models.series_pr_exercise import SeriesPrExercise as series_pr_exercise
 from src.models.dropset_pr_exercise import DropSetPrExercise as dropset_pr_exercise
+from src.models.history_pr_exercise import HistoryPrExercise as history_pr_exercise
 from src.schemas.series_pr_exercise import SeriesPrExercise
 
 class SeriesPrExerciseRepository():
@@ -14,10 +15,19 @@ class SeriesPrExerciseRepository():
         query = self.db.query(series_pr_exercise).filter(series_pr_exercise.history_pr_exercise_id == history_pr_exercise_id)
         return query.all()
     
-    def create_new_series_pr_exercise(self, series_pr_exercise_data: SeriesPrExercise) -> SeriesPrExercise:
+    def create_new_series_pr_exercise(self, series_pr_exercise_data: SeriesPrExercise, user_email: str) -> SeriesPrExercise:
         """
         Crea una nueva serie PR.
         """
+        # Verificar que el usuario es el dueño del historial
+        history = self.db.query(history_pr_exercise).filter(
+            history_pr_exercise.id == series_pr_exercise_data.history_pr_exercise_id,
+            history_pr_exercise.user_email == user_email
+        ).first()
+        
+        if not history:
+            raise ValueError("No tienes permiso para crear series en este historial")
+            
         new_series = series_pr_exercise(
             history_pr_exercise_id=series_pr_exercise_data.history_pr_exercise_id,
             weight=series_pr_exercise_data.weight,
@@ -28,15 +38,23 @@ class SeriesPrExerciseRepository():
         self.db.refresh(new_series)
         return new_series
     
-    def remove_series_pr_exercise(self, id: int) -> dict:
+    def remove_series_pr_exercise(self, id: int, user_email: str) -> dict:
         """
         Elimina una serie PR específica.
         """
-        element = self.db.query(series_pr_exercise).filter(series_pr_exercise.id == id).first()
-        if element:
-            self.db.delete(element)
+        series = self.db.query(series_pr_exercise).filter(series_pr_exercise.id == id).first()
+        if series:
+            history = self.db.query(history_pr_exercise).filter(
+                history_pr_exercise.id == series.history_pr_exercise_id,
+                history_pr_exercise.user_email == user_email
+            ).first()
+            
+            if not history:
+                raise ValueError("No tienes permiso para eliminar esta serie")
+                
+            self.db.delete(series)
             self.db.commit()
-        return element
+        return series
     
     def get_series_pr_exercise_by_id(self, id: int) -> SeriesPrExercise:
         """
@@ -44,14 +62,26 @@ class SeriesPrExerciseRepository():
         """
         return self.db.query(series_pr_exercise).filter(series_pr_exercise.id == id).first()
     
-    def update_series_pr_exercise(self, id: int, series_pr_exercise_data: SeriesPrExercise) -> SeriesPrExercise:
+    def update_series_pr_exercise(self, id: int, series_pr_exercise_data: SeriesPrExercise, user_email: str) -> SeriesPrExercise:
         """
         Actualiza una serie PR específica.
         """
-        element = self.db.query(series_pr_exercise).filter(series_pr_exercise.id == id).first()
-        if element:
-            element.weight = series_pr_exercise_data.weight
-            element.reps = series_pr_exercise_data.reps
+        series = self.db.query(series_pr_exercise).filter(series_pr_exercise.id == id).first()
+        if series:
+            history = self.db.query(history_pr_exercise).filter(
+                history_pr_exercise.id == series.history_pr_exercise_id,
+                history_pr_exercise.user_email == user_email
+            ).first()
+            
+            if not history:
+                raise ValueError("No tienes permiso para actualizar esta serie")
+                
+            series.weight = series_pr_exercise_data.weight
+            series.reps = series_pr_exercise_data.reps
+            series.tipo_serie = series_pr_exercise_data.tipo_serie
+            series.rpe = series_pr_exercise_data.rpe
+            series.orden_serie = series_pr_exercise_data.orden_serie
+            series.notas_serie = series_pr_exercise_data.notas_serie
             self.db.commit()
-            self.db.refresh(element)
-        return element 
+            self.db.refresh(series)
+        return series 

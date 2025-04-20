@@ -7,6 +7,7 @@ from fastapi.encoders import jsonable_encoder
 from src.repositories.workout_day_exercise import WorkoutDayExerciseRepository
 from src.schemas.workout_day_exercise import WorkoutDayExercise
 from src.models.workout_day_exercise import WorkoutDayExercise as WorkoutDayExerciseModel
+from src.models.training_plan import TrainingPlan as TrainingPlanModel
 from fastapi.security import HTTPAuthorizationCredentials
 from src.auth.has_access import security
 from src.auth import auth_handler
@@ -31,51 +32,6 @@ def get_all_my_workout_day_exercises(credentials: Annotated[HTTPAuthorizationCre
         else:
             return JSONResponse(content={"message": "Insufficient privileges"}, status_code=status.HTTP_403_FORBIDDEN)
         
-@workout_day_exercise_router.get('/premium',response_model=List[WorkoutDayExercise],description="Devuelve todos los ejercicios de usuarios premium por dia de la semana")
-def get_premium_workout_day_exercises(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)])-> List[WorkoutDayExercise]:
-    db= SessionLocal()
-    payload = auth_handler.decode_token(credentials.credentials)
-    if payload:
-        role_user = payload.get("user.role")
-        status_user = payload.get("user.status")
-        if role_user >= 2 and status_user:
-            result = WorkoutDayExerciseRepository(db).get_premium_workout_day_exercises()
-            return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
-        elif not status_user:
-            return JSONResponse(content={"message": "User is inactive"}, status_code=status.HTTP_403_FORBIDDEN)
-        else:
-            return JSONResponse(content={"message": "Insufficient privileges"}, status_code=status.HTTP_403_FORBIDDEN)
-        
-@workout_day_exercise_router.get('/gym',response_model=List[WorkoutDayExercise],description="Devuelve todos los ejercicios de usuarios gimnasio por día de la semana")
-def get_gym_workout_day_exercises(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)])-> List[WorkoutDayExercise]:
-    db= SessionLocal()
-    payload = auth_handler.decode_token(credentials.credentials)
-    if payload:
-        role_user = payload.get("user.role")
-        status_user = payload.get("user.status")
-        if role_user >= 2 and status_user:
-            result = WorkoutDayExerciseRepository(db).get_gym_workout_day_exercises()
-            return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
-        elif not status_user:
-            return JSONResponse(content={"message": "User is inactive"}, status_code=status.HTTP_403_FORBIDDEN)
-        else:
-            return JSONResponse(content={"message": "Insufficient privileges"}, status_code=status.HTTP_403_FORBIDDEN)
-            
-@workout_day_exercise_router.get('/admin',response_model=List[WorkoutDayExercise],description="Devuelve todos los ejercicios de usuarios administradores por día de la semana")
-def get_admin_workout_day_exercises(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)])-> List[WorkoutDayExercise]:
-    db= SessionLocal()
-    payload = auth_handler.decode_token(credentials.credentials)
-    if payload:
-        role_user = payload.get("user.role")
-        status_user = payload.get("user.status")
-        if role_user >= 2 and status_user:
-            result = WorkoutDayExerciseRepository(db).get_admin_workout_day_exercises()
-            return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
-        elif not status_user:
-            return JSONResponse(content={"message": "User is inactive"}, status_code=status.HTTP_403_FORBIDDEN)
-        else:
-            return JSONResponse(content={"message": "Insufficient privileges"}, status_code=status.HTTP_403_FORBIDDEN)
-
 @workout_day_exercise_router.get('/{id}',response_model=WorkoutDayExercise,description="Devuelve un ejercicio específico por día de la semana")
 def get_workout_day_exercise(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], id: int = Path(ge=1)) -> WorkoutDayExercise:
     db = SessionLocal()
@@ -85,7 +41,7 @@ def get_workout_day_exercise(credentials: Annotated[HTTPAuthorizationCredentials
         status_user = payload.get("user.status")
         if role_user >= 2 and status_user:
             current_user = payload.get("sub")
-            element=  WorkoutDayExerciseRepository(db).get_workout_day_exercise_by_id(id, current_user)
+            element=  WorkoutDayExerciseRepository(db).get_workout_day_exercise_by_id(id)
             if not element:        
                 return JSONResponse(
                     content={            
@@ -111,8 +67,9 @@ def create_workout_day_exercise(credentials: Annotated[HTTPAuthorizationCredenti
         role_user = payload.get("user.role")
         status_user = payload.get("user.status")
         if role_user >= 2 and status_user:
+            current_user = payload.get("sub")
             try:
-                new_excercise = WorkoutDayExerciseRepository(db).create_new_workout_day_exercise(exercise)
+                new_excercise = WorkoutDayExerciseRepository(db).create_new_workout_day_exercise(exercise, current_user)
                 return JSONResponse(
                     content={        
                     "message": "The exercise per week day was successfully created",        
@@ -128,14 +85,6 @@ def create_workout_day_exercise(credentials: Annotated[HTTPAuthorizationCredenti
                     },
                     status_code=status.HTTP_400_BAD_REQUEST
                 )
-            except Exception as e:
-                return JSONResponse(
-                    content={
-                        "message": f"Error al crear el ejercicio: {str(e)}",
-                        "data": None
-                    },
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
         elif not status_user:
             return JSONResponse(content={"message": "User is inactive"}, status_code=status.HTTP_403_FORBIDDEN)
         else:
@@ -150,7 +99,29 @@ def remove_workout_day_exercise(credentials: Annotated[HTTPAuthorizationCredenti
         status_user = payload.get("user.status")
         if role_user >= 2 and status_user:
             current_user = payload.get("sub")
-            element = WorkoutDayExerciseRepository(db).delete_workout_day_exercise(id, current_user)  
+            # Verificar que el ejercicio pertenece al usuario actual o es administrador
+            element = WorkoutDayExerciseRepository(db).get_workout_day_exercise_by_id(id)
+            if not element:
+                return JSONResponse(
+                    content={            
+                        "message": "The requested exercise per week day was not found",            
+                        "data": None        
+                        }, 
+                    status_code=status.HTTP_404_NOT_FOUND
+                    )
+            
+            # Verificar que el plan de entrenamiento pertenece al usuario actual o es administrador
+            training_plan = db.query(TrainingPlanModel).filter(TrainingPlanModel.id == element.training_plan_id).first()
+            if training_plan.user_email != current_user and role_user != 4:
+                return JSONResponse(
+                    content={            
+                        "message": "You do not have permission to delete this exercise",            
+                        "data": None        
+                        }, 
+                    status_code=status.HTTP_403_FORBIDDEN
+                    )
+                
+            element = WorkoutDayExerciseRepository(db).delete_workout_day_exercise(id)  
             return JSONResponse(
                 content={        
                     "message": "The exercise per week day was successfully removed",        
@@ -158,6 +129,77 @@ def remove_workout_day_exercise(credentials: Annotated[HTTPAuthorizationCredenti
                 }, 
                 status_code=status.HTTP_200_OK
             )
+        elif not status_user:
+            return JSONResponse(content={"message": "User is inactive"}, status_code=status.HTTP_403_FORBIDDEN)
+        else:
+            return JSONResponse(content={"message": "Insufficient privileges"}, status_code=status.HTTP_403_FORBIDDEN)
+
+@workout_day_exercise_router.put('/{id}',response_model=dict,description="Actualiza un ejercicio específico por día de la semana")
+def update_workout_day_exercise(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], id: int = Path(ge=1), exercise: WorkoutDayExercise = Body()) -> dict:
+    db = SessionLocal()
+    payload = auth_handler.decode_token(credentials.credentials)
+    if payload:
+        role_user = payload.get("user.role")
+        status_user = payload.get("user.status")
+        if role_user >= 2 and status_user:
+            current_user = payload.get("sub")
+            # Verificar que el ejercicio pertenece al usuario actual o es administrador
+            element = WorkoutDayExerciseRepository(db).get_workout_day_exercise_by_id(id)
+            if not element:
+                return JSONResponse(
+                    content={            
+                        "message": "The requested exercise per week day was not found",            
+                        "data": None        
+                        }, 
+                    status_code=status.HTTP_404_NOT_FOUND
+                    )
+            
+            # Verificar que el plan de entrenamiento pertenece al usuario actual o es administrador
+            training_plan = db.query(TrainingPlanModel).filter(TrainingPlanModel.id == element.training_plan_id).first()
+            if training_plan.user_email != current_user and role_user != 4:
+                return JSONResponse(
+                    content={            
+                        "message": "You do not have permission to update this exercise",            
+                        "data": None        
+                        }, 
+                    status_code=status.HTTP_403_FORBIDDEN
+                    )
+                
+            try:
+                updated_element = WorkoutDayExerciseRepository(db).update_workout_day_exercise(id, exercise)
+                return JSONResponse(
+                    content={        
+                    "message": "The exercise per week day was successfully updated",        
+                    "data": jsonable_encoder(updated_element)    
+                    }, 
+                    status_code=status.HTTP_200_OK
+                )
+            except ValueError as e:
+                return JSONResponse(
+                    content={
+                        "message": str(e),
+                        "data": None
+                    },
+                    status_code=status.HTTP_400_BAD_REQUEST
+                )
+        elif not status_user:
+            return JSONResponse(content={"message": "User is inactive"}, status_code=status.HTTP_403_FORBIDDEN)
+        else:
+            return JSONResponse(content={"message": "Insufficient privileges"}, status_code=status.HTTP_403_FORBIDDEN)
+
+@workout_day_exercise_router.get('/training_plan/{training_plan_id}', response_model=List[WorkoutDayExercise], description="Devuelve todos los ejercicios por día de la semana de un plan de entrenamiento específico")
+def get_workout_day_exercises_by_training_plan(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+    training_plan_id: int = Path(ge=1)
+) -> List[WorkoutDayExercise]:
+    db = SessionLocal()
+    payload = auth_handler.decode_token(credentials.credentials)
+    if payload:
+        role_user = payload.get("user.role")
+        status_user = payload.get("user.status")
+        if role_user >= 2 and status_user:
+            result = WorkoutDayExerciseRepository(db).get_workout_day_exercises_by_training_plan(training_plan_id)
+            return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
         elif not status_user:
             return JSONResponse(content={"message": "User is inactive"}, status_code=status.HTTP_403_FORBIDDEN)
         else:

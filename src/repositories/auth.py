@@ -113,26 +113,34 @@ class AuthRepository:
         return {"message": "Email verificado exitosamente"}
 
     def login_user(self, user: UserLoginSchema) -> dict:
-        db = SessionLocal()
-        check_user = UserRepository(db).get_user_by_email(email=user.email)
-        if check_user is None:
+        try:
+            # Buscar el usuario directamente en la base de datos
+            check_user = self.db.query(UserModel).filter(UserModel.email == user.email).first()
+            
+            if check_user is None:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Credenciales inválidas",
+                )
+                
+            if not auth_handler.verify_password(user.password, check_user.password):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Credenciales inválidas",
+                )
+            # Generar los tokens
+            access_token = auth_handler.encode_token(check_user)
+            refresh_token = auth_handler.encode_refresh_token(check_user)
+            
+            return access_token, refresh_token
+            
+        except HTTPException as he:
+            raise he
+        except Exception as e:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Credenciales inválidas (1)",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(e)
             )
-        if not auth_handler.verify_password(user.password, check_user.password):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Credenciales inválidas (2)",
-            )
-        if not check_user.status:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Cuenta deshabilitada",
-            )
-        access_token = auth_handler.encode_token(check_user)
-        refresh_token = auth_handler.encode_refresh_token(check_user)
-        return access_token, refresh_token
 
     def change_password(self, email: str, current_password: str, new_password: str) -> dict:
         db = SessionLocal()
@@ -274,6 +282,34 @@ class AuthRepository:
                 "message": "Se ha enviado un nuevo código de verificación a tu correo electrónico",
                 "verification_code": None
             }
+            
+        except HTTPException as he:
+            raise he
+        except Exception as e:
+            self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(e)
+            )
+
+    def enable_account(self, email: str) -> dict:
+        try:
+            # Verificar si el usuario existe
+            user = self.db.query(UserModel).filter(UserModel.email == email).first()
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Usuario no encontrado"
+                )
+            
+            # Habilitar la cuenta
+            user.status = True
+            
+            # Guardar los cambios
+            self.db.commit()
+            self.db.refresh(user)
+            
+            return {"message": "Cuenta habilitada exitosamente"}
             
         except HTTPException as he:
             raise he
