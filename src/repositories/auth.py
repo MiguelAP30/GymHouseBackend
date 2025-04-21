@@ -83,34 +83,42 @@ class AuthRepository:
             )
 
     def verify_email(self, email: str, verification_code: str) -> dict:
-        db = SessionLocal()
-        user = UserRepository(db).get_user_by_email(email=email)
-        
-        if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Usuario no encontrado"
-            )
+        try:
+            # Verificar si el usuario existe
+            user = self.db.query(UserModel).filter(UserModel.email == email).first()
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Usuario no encontrado"
+                )
             
-        if user.is_verified:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="El usuario ya está verificado"
-            )
+            if user.is_verified:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="El usuario ya está verificado"
+                )
             
-        if user.verification_code != verification_code:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Código de verificación inválido"
-            )
+            if user.verification_code != verification_code:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Código de verificación inválido"
+                )
             
-        # Marcar al usuario como verificado
-        user.is_verified = True
-        user.verification_code = None
-        db.commit()
-        db.refresh(user)
-        
-        return {"message": "Email verificado exitosamente"}
+            # Marcar al usuario como verificado
+            user.is_verified = True
+            user.verification_code = None
+            self.db.commit()
+            
+            return {"message": "Email verificado exitosamente"}
+            
+        except HTTPException as he:
+            raise he
+        except Exception as e:
+            self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(e)
+            )
 
     def login_user(self, user: UserLoginSchema) -> dict:
         try:

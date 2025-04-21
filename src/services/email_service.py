@@ -19,6 +19,13 @@ class EmailService:
             print("ADVERTENCIA: Credenciales de correo electrónico no configuradas correctamente")
             return
 
+    def _create_ssl_context(self):
+        """Crea un contexto SSL con verificación de certificados deshabilitada para entornos Docker"""
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        return context
+
     def send_verification_email(self, to_email: str, verification_code: str) -> bool:
         try:
             if not all([self.smtp_server, self.sender_email, self.sender_password]):
@@ -119,17 +126,16 @@ class EmailService:
             msg.attach(MIMEText(body.encode('utf-8'), 'html', 'utf-8'))
 
             try:
-                # Intentar primero con SSL (puerto 465)
-                context = ssl.create_default_context()
+                context = self._create_ssl_context()
                 with smtplib.SMTP_SSL(self.smtp_server, 465, context=context) as server:
                     server.login(self.sender_email, self.sender_password)
                     server.send_message(msg)
                 return True
             except Exception as ssl_error:
                 try:
-                    # Si falla SSL, intentar con TLS (puerto 587)
+                    context = self._create_ssl_context()
                     with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
-                        server.starttls(context=ssl.create_default_context())
+                        server.starttls(context=context)
                         server.login(self.sender_email, self.sender_password)
                         server.send_message(msg)
                     return True
@@ -137,9 +143,7 @@ class EmailService:
                     print(f"Error al enviar el correo: {str(tls_error)}")
                     return False
         except Exception as e:
-            error_details = traceback.format_exc()
             print(f"Error al enviar el correo: {str(e)}")
-            print(f"Detalles del error: {error_details}")
             return False
 
     def send_password_reset_code(self, to_email: str, reset_code: str) -> bool:
@@ -242,17 +246,16 @@ class EmailService:
             msg.attach(MIMEText(body.encode('utf-8'), 'html', 'utf-8'))
 
             try:
-                # Intentar primero con SSL (puerto 465)
-                context = ssl.create_default_context()
+                context = self._create_ssl_context()
                 with smtplib.SMTP_SSL(self.smtp_server, 465, context=context) as server:
                     server.login(self.sender_email, self.sender_password)
                     server.send_message(msg)
                 return True
             except Exception as ssl_error:
                 try:
-                    # Si falla SSL, intentar con TLS (puerto 587)
+                    context = self._create_ssl_context()
                     with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
-                        server.starttls(context=ssl.create_default_context())
+                        server.starttls(context=context)
                         server.login(self.sender_email, self.sender_password)
                         server.send_message(msg)
                     return True
@@ -260,7 +263,6 @@ class EmailService:
                     print(f"Error al enviar el correo: {str(tls_error)}")
                     return False
         except Exception as e:
-            error_details = traceback.format_exc()
             print(f"Error al enviar el correo: {str(e)}")
             print(f"Detalles del error: {error_details}")
             return False 

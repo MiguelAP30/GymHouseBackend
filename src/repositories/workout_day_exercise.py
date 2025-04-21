@@ -5,6 +5,7 @@ from src.models.training_plan import TrainingPlan as TrainingPlanModel
 from src.models.week_day import WeekDay as WeekDayModel
 from src.models.exercise_configuration import ExerciseConfiguration as ExerciseConfigurationModel
 from src.models.user import User as UserModel
+from src.repositories.user_gym import UserGymRepository
 
 
 class WorkoutDayExerciseRepository:
@@ -22,6 +23,7 @@ class WorkoutDayExerciseRepository:
         - Se inicializa el objeto WorkoutDayExerciseRepository con la base de datos especificada.
         """
         self.db = db
+        self.user_gym_repo = UserGymRepository(db)
 
     def get_all_workout_day_exercises(self) -> List[WorkoutDayExercise]:
         """
@@ -127,16 +129,41 @@ class WorkoutDayExerciseRepository:
         Postcondición:
         - Crea un nuevo ejercicio por día de la semana en la base de datos y lo devuelve.
         """
-        # Verificar que el training_plan_id existe
+        # Obtener el usuario actual
+        current_user = self.db.query(UserModel).filter(UserModel.email == user_email).first()
+        if not current_user:
+            raise ValueError("Usuario no encontrado")
+
+        # Obtener el plan de entrenamiento
         training_plan = self.db.query(TrainingPlanModel).\
             filter(TrainingPlanModel.id == workout_day_exercise.training_plan_id).first()
         if not training_plan:
             raise ValueError(f"No existe un plan de entrenamiento con id {workout_day_exercise.training_plan_id}")
-        
-        # Verificar que el usuario es dueño del training plan
-        if training_plan.user_email != user_email:
-            raise ValueError(f"No tienes permiso para crear ejercicios para este plan de entrenamiento")
-        
+
+        # Obtener el usuario objetivo
+        target_user = self.db.query(UserModel).filter(UserModel.email == training_plan.user_email).first()
+        if not target_user:
+            raise ValueError("Usuario objetivo no encontrado")
+
+        # Verificar permisos
+        can_create = False
+
+        # Si el usuario actual es administrador (role 4)
+        if current_user.role_id == 4:
+            can_create = True
+        # Si el usuario actual es el mismo que el objetivo y es premium (role 2)
+        elif user_email == training_plan.user_email and current_user.role_id == 2:
+            can_create = True
+        # Si el usuario actual es un gimnasio (role 3) y el objetivo es premium (role 2)
+        elif current_user.role_id == 3 and target_user.role_id == 2:
+            # Verificar que el gimnasio puede gestionar el plan del usuario
+            user_gym = self.user_gym_repo.get_user_gym(target_user.email, user_email)
+            if user_gym and user_gym.is_active:
+                can_create = True
+
+        if not can_create:
+            raise ValueError("No tienes permiso para crear ejercicios para este plan de entrenamiento")
+
         # Verificar que el week_day_id existe
         week_day = self.db.query(WeekDayModel).\
             filter(WeekDayModel.id == workout_day_exercise.week_day_id).first()
@@ -159,7 +186,7 @@ class WorkoutDayExerciseRepository:
         self.db.refresh(new_workout_day_exercise)
         return new_workout_day_exercise
 
-    def update_workout_day_exercise(self, id: int, workout_day_exercise: WorkoutDayExercise) -> dict:
+    def update_workout_day_exercise(self, id: int, workout_day_exercise: WorkoutDayExercise, user_email: str) -> dict:
         """
         Actualiza un ejercicio por día de la semana.
 
@@ -173,9 +200,47 @@ class WorkoutDayExerciseRepository:
         Postcondición:
         - Actualiza el ejercicio por día de la semana en la base de datos y lo devuelve.
         """
+        # Obtener el usuario actual
+        current_user = self.db.query(UserModel).filter(UserModel.email == user_email).first()
+        if not current_user:
+            raise ValueError("Usuario no encontrado")
+
+        # Obtener el workout day exercise existente
         element = self.db.query(WorkoutDayExerciseModel).\
             filter(WorkoutDayExerciseModel.id == id).first()
-        
+        if not element:
+            raise ValueError(f"No existe un ejercicio con id {id}")
+
+        # Obtener el plan de entrenamiento
+        training_plan = self.db.query(TrainingPlanModel).\
+            filter(TrainingPlanModel.id == element.training_plan_id).first()
+        if not training_plan:
+            raise ValueError("Plan de entrenamiento no encontrado")
+
+        # Obtener el usuario objetivo
+        target_user = self.db.query(UserModel).filter(UserModel.email == training_plan.user_email).first()
+        if not target_user:
+            raise ValueError("Usuario objetivo no encontrado")
+
+        # Verificar permisos
+        can_update = False
+
+        # Si el usuario actual es administrador (role 4)
+        if current_user.role_id == 4:
+            can_update = True
+        # Si el usuario actual es el mismo que el objetivo y es premium (role 2)
+        elif user_email == training_plan.user_email and current_user.role_id == 2:
+            can_update = True
+        # Si el usuario actual es un gimnasio (role 3) y el objetivo es premium (role 2)
+        elif current_user.role_id == 3 and target_user.role_id == 2:
+            # Verificar que el gimnasio puede gestionar el plan del usuario
+            user_gym = self.user_gym_repo.get_user_gym(target_user.email, user_email)
+            if user_gym and user_gym.is_active:
+                can_update = True
+
+        if not can_update:
+            raise ValueError("No tienes permiso para actualizar este ejercicio")
+
         # Verificar que el training_plan_id existe si se está actualizando
         if workout_day_exercise.training_plan_id:
             training_plan = self.db.query(TrainingPlanModel).\
@@ -197,7 +262,7 @@ class WorkoutDayExerciseRepository:
         self.db.refresh(element)
         return element
 
-    def delete_workout_day_exercise(self, id: int) -> dict:
+    def delete_workout_day_exercise(self, id: int, user_email: str) -> dict:
         """
         Elimina un ejercicio por día de la semana.
 
@@ -210,8 +275,52 @@ class WorkoutDayExerciseRepository:
         Postcondición:
         - Elimina el ejercicio por día de la semana de la base de datos y lo devuelve.
         """
+        # Obtener el usuario actual
+        current_user = self.db.query(UserModel).filter(UserModel.email == user_email).first()
+        if not current_user:
+            raise ValueError("Usuario no encontrado")
+
+        # Obtener el workout day exercise
         element = self.db.query(WorkoutDayExerciseModel).\
             filter(WorkoutDayExerciseModel.id == id).first()
+        if not element:
+            raise ValueError(f"No existe un ejercicio con id {id}")
+
+        # Obtener el plan de entrenamiento
+        training_plan = self.db.query(TrainingPlanModel).\
+            filter(TrainingPlanModel.id == element.training_plan_id).first()
+        if not training_plan:
+            raise ValueError("Plan de entrenamiento no encontrado")
+
+        # Obtener el usuario objetivo
+        target_user = self.db.query(UserModel).filter(UserModel.email == training_plan.user_email).first()
+        if not target_user:
+            raise ValueError("Usuario objetivo no encontrado")
+
+        # Verificar permisos
+        can_delete = False
+
+        # Si el usuario actual es administrador (role 4)
+        if current_user.role_id == 4:
+            can_delete = True
+        # Si el usuario actual es el mismo que el objetivo y es premium (role 2)
+        elif user_email == training_plan.user_email and current_user.role_id == 2:
+            can_delete = True
+        # Si el usuario actual es un gimnasio (role 3) y el objetivo es premium (role 2)
+        elif current_user.role_id == 3 and target_user.role_id == 2:
+            # Verificar que el gimnasio puede gestionar el plan del usuario
+            user_gym = self.user_gym_repo.get_user_gym(target_user.email, user_email)
+            if user_gym and user_gym.is_active:
+                can_delete = True
+
+        if not can_delete:
+            raise ValueError("No tienes permiso para eliminar este ejercicio")
+
+        # Eliminar las configuraciones de ejercicios asociadas
+        self.db.query(ExerciseConfigurationModel).\
+            filter(ExerciseConfigurationModel.workout_day_exercise_id == id).delete()
+
+        # Eliminar el workout day exercise
         self.db.delete(element)
         self.db.commit()
         return element

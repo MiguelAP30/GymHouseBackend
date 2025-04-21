@@ -7,7 +7,9 @@ class TrainingPlan(BaseModel):
     description: str = Field(min_length=4, title="Descripcion del plan de entrenamiento", max_length=200)
     tag_of_training_plan_id: Optional[int] = Field(default=None, title="Id de la etiqueta del plan de entrenamiento")
     user_email: Optional[str] = Field(default=None, title="Email del usuario")
+    user_gym_id: Optional[int] = Field(default=None, title="Id de la relación usuario-gimnasio")
     is_visible: Optional[bool] = Field(default=False, title="Estado del plan de entrenamiento")
+    is_gym_created: Optional[bool] = Field(default=False, title="Indica si el plan fue creado por un gimnasio")
 
     @validator("name")
     def name_must_not_be_empty(cls, value):
@@ -18,13 +20,35 @@ class TrainingPlan(BaseModel):
     def description_must_not_be_empty(cls, value):
         assert isinstance(value,str), ValueError("la descripcion debe ser un string")
         return value
+    
     class Config:
         json_schema_extra = {
             "example": {
                 "name": "push pull legs",
                 "description": "El push pull legs es un plan de entrenamiento que se basa en dividir los musculos en 3 grupos principales, los musculos que empujan, los musculos que jalan y las piernas",
                 "tag_of_training_plan_id": 1,
-                "is_visible": True
+                "is_visible": True,
+                "is_gym_created": False
+            }
+        }
+
+class TrainingPlanCreate(BaseModel):
+    name: str = Field(min_length=4, title="nombre del plan de entrenamiento", max_length=60)
+    description: str = Field(min_length=4, title="Descripcion del plan de entrenamiento", max_length=200)
+    tag_of_training_plan_id: Optional[int] = Field(default=None, title="Id de la etiqueta del plan de entrenamiento")
+    user_email: str = Field(title="Email del usuario")
+    is_visible: Optional[bool] = Field(default=False, title="Estado del plan de entrenamiento")
+    is_gym_created: Optional[bool] = Field(default=False, title="Indica si el plan fue creado por un gimnasio")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "name": "push pull legs",
+                "description": "El push pull legs es un plan de entrenamiento que se basa en dividir los musculos en 3 grupos principales, los musculos que empujan, los musculos que jalan y las piernas",
+                "tag_of_training_plan_id": 1,
+                "user_email": "usuario@ejemplo.com",
+                "is_visible": True,
+                "is_gym_created": False
             }
         }
 

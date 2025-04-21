@@ -3,10 +3,13 @@ from src.schemas.exercise_configuration import ExerciseConfiguration
 from src.models.exercise_configuration import ExerciseConfiguration as ExerciseConfigurationModel
 from src.models.workout_day_exercise import WorkoutDayExercise as WorkoutDayExerciseModel
 from src.models.training_plan import TrainingPlan as TrainingPlanModel
+from src.models.user import User as UserModel
+from src.repositories.user_gym import UserGymRepository
 
 class ExerciseConfigurationRepository():
     def __init__(self, db) -> None:
         self.db = db
+        self.user_gym_repo = UserGymRepository(db)
     
     def get_all_exercise_configurations(self) -> List[ExerciseConfiguration]:
         """
@@ -50,24 +53,72 @@ class ExerciseConfigurationRepository():
         
         return element
     
-    def delete_exercise_configuration(self, id: int ) -> dict:
+    def delete_exercise_configuration(self, id: int, user_email: str) -> dict:
         """
         Elimina un ejercicio detallado por su ID.
 
         Parámetros:
         - id: el ID del ejercicio detallado que se desea eliminar.
+        - user_email: email del usuario que está eliminando la configuración
         
         Precondición: El parámetro 'id' debe ser un entero válido.
         Postcondición: Elimina el ejercicio detallado con el ID especificado de la base de datos y devuelve un diccionario que contiene los datos del ejercicio eliminado.
         """
-        element: ExerciseConfiguration= self.db.query(ExerciseConfigurationModel).filter(ExerciseConfigurationModel.id == id).first()
+        # Obtener el usuario actual
+        current_user = self.db.query(UserModel).filter(UserModel.email == user_email).first()
+        if not current_user:
+            raise ValueError("Usuario no encontrado")
+
+        # Obtener la configuración de ejercicio
+        element = self.db.query(ExerciseConfigurationModel).filter(ExerciseConfigurationModel.id == id).first()
+        if not element:
+            raise ValueError(f"No existe una configuración de ejercicio con id {id}")
+
+        # Obtener el workout day exercise
+        workout_day_exercise = self.db.query(WorkoutDayExerciseModel).filter(
+            WorkoutDayExerciseModel.id == element.workout_day_exercise_id
+        ).first()
+        if not workout_day_exercise:
+            raise ValueError("Ejercicio por día de la semana no encontrado")
+
+        # Obtener el plan de entrenamiento
+        training_plan = self.db.query(TrainingPlanModel).filter(
+            TrainingPlanModel.id == workout_day_exercise.training_plan_id
+        ).first()
+        if not training_plan:
+            raise ValueError("Plan de entrenamiento no encontrado")
+
+        # Obtener el usuario objetivo
+        target_user = self.db.query(UserModel).filter(UserModel.email == training_plan.user_email).first()
+        if not target_user:
+            raise ValueError("Usuario objetivo no encontrado")
+
+        # Verificar permisos
+        can_delete = False
+
+        # Si el usuario actual es administrador (role 4)
+        if current_user.role_id == 4:
+            can_delete = True
+        # Si el usuario actual es el mismo que el objetivo y es premium (role 2)
+        elif user_email == training_plan.user_email and current_user.role_id == 2:
+            can_delete = True
+        # Si el usuario actual es un gimnasio (role 3) y el objetivo es premium (role 2)
+        elif current_user.role_id == 3 and target_user.role_id == 2:
+            # Verificar que el gimnasio puede gestionar el plan del usuario
+            user_gym = self.user_gym_repo.get_user_gym(target_user.email, user_email)
+            if user_gym and user_gym.is_active:
+                can_delete = True
+
+        if not can_delete:
+            raise ValueError("No tienes permiso para eliminar esta configuración de ejercicio")
+
         # Guardar los datos antes de eliminar
         element_data = element.to_dict()
         self.db.delete(element)
         self.db.commit()
         return element_data
 
-    def create_new_exercise_configuration(self, exercise_configuration:ExerciseConfiguration, user_email: str) -> dict:
+    def create_new_exercise_configuration(self, exercise_configuration: ExerciseConfiguration, user_email: str) -> dict:
         """
         Crea un nuevo ejercicio detallado.
 
@@ -78,40 +129,115 @@ class ExerciseConfigurationRepository():
         Precondición: El parámetro 'exercise_configuration' debe ser un objeto ExerciseConfiguration válido.
         Postcondición: Crea un nuevo ejercicio detallado en la base de datos.
         """
+        # Obtener el usuario actual
+        current_user = self.db.query(UserModel).filter(UserModel.email == user_email).first()
+        if not current_user:
+            raise ValueError("Usuario no encontrado")
+
         # Verificar que el ejercicio por día de la semana existe
         workout_day_exercise = self.db.query(WorkoutDayExerciseModel).filter(
             WorkoutDayExerciseModel.id == exercise_configuration.workout_day_exercise_id
         ).first()
-        
         if not workout_day_exercise:
             raise ValueError(f"El ejercicio por día de la semana con ID {exercise_configuration.workout_day_exercise_id} no existe")
-        
-        # Verificar que el usuario es dueño del workout day exercise
+
+        # Obtener el plan de entrenamiento
         training_plan = self.db.query(TrainingPlanModel).filter(
             TrainingPlanModel.id == workout_day_exercise.training_plan_id
         ).first()
-        
-        if training_plan.user_email != user_email:
-            raise ValueError(f"No tienes permiso para crear configuraciones para este ejercicio por día de la semana")
-        
+        if not training_plan:
+            raise ValueError("Plan de entrenamiento no encontrado")
+
+        # Obtener el usuario objetivo
+        target_user = self.db.query(UserModel).filter(UserModel.email == training_plan.user_email).first()
+        if not target_user:
+            raise ValueError("Usuario objetivo no encontrado")
+
+        # Verificar permisos
+        can_create = False
+
+        # Si el usuario actual es administrador (role 4)
+        if current_user.role_id == 4:
+            can_create = True
+        # Si el usuario actual es el mismo que el objetivo y es premium (role 2)
+        elif user_email == training_plan.user_email and current_user.role_id == 2:
+            can_create = True
+        # Si el usuario actual es un gimnasio (role 3) y el objetivo es premium (role 2)
+        elif current_user.role_id == 3 and target_user.role_id == 2:
+            # Verificar que el gimnasio puede gestionar el plan del usuario
+            user_gym = self.user_gym_repo.get_user_gym(target_user.email, user_email)
+            if user_gym and user_gym.is_active:
+                can_create = True
+
+        if not can_create:
+            raise ValueError("No tienes permiso para crear configuraciones para este ejercicio")
+
         new_exercise_configuration = ExerciseConfigurationModel(**exercise_configuration.model_dump())
         self.db.add(new_exercise_configuration)
         self.db.commit()
         self.db.refresh(new_exercise_configuration)
         return new_exercise_configuration
 
-    def update_exercise_configuration(self, id: int, exercise_configuration: ExerciseConfiguration) -> dict:
+    def update_exercise_configuration(self, id: int, exercise_configuration: ExerciseConfiguration, user_email: str) -> dict:
         """
         Actualiza un ejercicio detallado por su ID.
 
         Parámetros:
         - id: el ID del ejercicio detallado que se desea actualizar.
         - exercise_configuration: un objeto ExerciseConfiguration que contiene los datos actualizados del ejercicio detallado.
+        - user_email: email del usuario que está actualizando la configuración
         
         Precondición: El parámetro 'id' debe ser un entero válido. El parámetro 'exercise_configuration' debe ser un objeto ExerciseConfiguration válido.
         Postcondición: Actualiza los datos del ejercicio detallado con el ID especificado utilizando los datos proporcionados en 'exercise_configuration' y devuelve un diccionario que contiene los datos del ejercicio actualizado.
         """
-        element: ExerciseConfiguration = self.db.query(ExerciseConfigurationModel).filter(ExerciseConfigurationModel.id == id).first()
+        # Obtener el usuario actual
+        current_user = self.db.query(UserModel).filter(UserModel.email == user_email).first()
+        if not current_user:
+            raise ValueError("Usuario no encontrado")
+
+        # Obtener la configuración de ejercicio existente
+        element = self.db.query(ExerciseConfigurationModel).filter(ExerciseConfigurationModel.id == id).first()
+        if not element:
+            raise ValueError(f"No existe una configuración de ejercicio con id {id}")
+
+        # Obtener el workout day exercise
+        workout_day_exercise = self.db.query(WorkoutDayExerciseModel).filter(
+            WorkoutDayExerciseModel.id == element.workout_day_exercise_id
+        ).first()
+        if not workout_day_exercise:
+            raise ValueError("Ejercicio por día de la semana no encontrado")
+
+        # Obtener el plan de entrenamiento
+        training_plan = self.db.query(TrainingPlanModel).filter(
+            TrainingPlanModel.id == workout_day_exercise.training_plan_id
+        ).first()
+        if not training_plan:
+            raise ValueError("Plan de entrenamiento no encontrado")
+
+        # Obtener el usuario objetivo
+        target_user = self.db.query(UserModel).filter(UserModel.email == training_plan.user_email).first()
+        if not target_user:
+            raise ValueError("Usuario objetivo no encontrado")
+
+        # Verificar permisos
+        can_update = False
+
+        # Si el usuario actual es administrador (role 4)
+        if current_user.role_id == 4:
+            can_update = True
+        # Si el usuario actual es el mismo que el objetivo y es premium (role 2)
+        elif user_email == training_plan.user_email and current_user.role_id == 2:
+            can_update = True
+        # Si el usuario actual es un gimnasio (role 3) y el objetivo es premium (role 2)
+        elif current_user.role_id == 3 and target_user.role_id == 2:
+            # Verificar que el gimnasio puede gestionar el plan del usuario
+            user_gym = self.user_gym_repo.get_user_gym(target_user.email, user_email)
+            if user_gym and user_gym.is_active:
+                can_update = True
+
+        if not can_update:
+            raise ValueError("No tienes permiso para actualizar esta configuración de ejercicio")
+
         element.exercise_id = exercise_configuration.exercise_id
         element.workout_day_exercise_id = exercise_configuration.workout_day_exercise_id
         element.sets = exercise_configuration.sets

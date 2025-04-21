@@ -1,15 +1,18 @@
 from typing import List, Tuple, Optional
-from sqlalchemy import or_, func
-from src.schemas.training_plan import TrainingPlan
+from sqlalchemy import or_, func, and_
+from src.schemas.training_plan import TrainingPlan, TrainingPlanCreate
 from src.models.training_plan import TrainingPlan as training_plans
 from src.models.user import User
 from src.models.workout_day_exercise import WorkoutDayExercise as WorkoutDayExerciseModel
 from src.models.week_day import WeekDay as WeekDayModel
 from src.models.like import Like as LikeModel
+from src.models.user_gym import UserGym
+from src.repositories.user_gym import UserGymRepository
 
 class TrainingPlanRepository():
     def __init__(self, db) -> None:
         self.db = db
+        self.user_gym_repo = UserGymRepository(db)
     
     def get_all_training_plans(
         self, 
@@ -152,27 +155,99 @@ class TrainingPlanRepository():
         element = query.first()
         return element
     
-    def delete_training_plan(self, id: int, user: str) -> dict:
+    def delete_training_plan(self, id: int, current_user_email: str) -> dict:
         """
-        Elimina un plan de entrenamiento por su ID.
+        Elimina un plan de entrenamiento.
         
         Args:
-            id: ID del plan de entrenamiento
-            user: Email del usuario que solicita la eliminación
+            id: ID del plan a eliminar
+            current_user_email: Email del usuario que intenta eliminar el plan
             
         Returns:
             El plan de entrenamiento eliminado
         """
-        element = self.db.query(training_plans).\
-        filter(training_plans.id == id, training_plans.user_email == user).first()
-        if element:
-            self.db.delete(element)
-            self.db.commit()
-        return element
+        # Obtener el plan de entrenamiento
+        plan = self.db.query(training_plans).filter(training_plans.id == id).first()
+        if not plan:
+            raise ValueError("Plan de entrenamiento no encontrado")
+            
+        # Obtener el usuario actual
+        current_user = self.db.query(User).filter(User.email == current_user_email).first()
+        if not current_user:
+            raise ValueError("Usuario no encontrado")
+            
+        # Verificar permisos
+        can_delete = False
+        
+        # Si el usuario actual es administrador (role 4)
+        if current_user.role_id == 4:
+            can_delete = True
+        # Si el usuario actual es el dueño del plan y es premium (role 2)
+        elif current_user_email == plan.user_email and current_user.role_id == 2:
+            can_delete = True
+        # Si el usuario actual es un gimnasio (role 3) y el plan es gestionado por él
+        elif current_user.role_id == 3 and plan.is_gym_created:
+            user_gym = self.user_gym_repo.get_user_gym(plan.user_email, current_user_email)
+            if user_gym and user_gym.is_active:
+                can_delete = True
+                
+        if not can_delete:
+            raise ValueError("No tienes permiso para eliminar este plan de entrenamiento")
+            
+        self.db.delete(plan)
+        self.db.commit()
+        return plan
 
-    def create_new_training_plan(self, training_plan:TrainingPlan ) -> dict:
+    def create_new_training_plan(self, training_plan: TrainingPlanCreate, current_user_email: str) -> dict:
+        """
+        Crea un nuevo plan de entrenamiento.
+        
+        Args:
+            training_plan: Datos del plan a crear
+            current_user_email: Email del usuario que intenta crear el plan
+            
+        Returns:
+            El plan de entrenamiento creado
+        """
+        # Obtener el usuario actual
+        current_user = self.db.query(User).filter(User.email == current_user_email).first()
+        if not current_user:
+            raise ValueError("Usuario no encontrado")
+            
+        # Obtener el usuario objetivo
+        target_user = self.db.query(User).filter(User.email == training_plan.user_email).first()
+        if not target_user:
+            raise ValueError("Usuario objetivo no encontrado")
+            
+        # Verificar permisos
+        can_create = False
+        
+        # Si el usuario actual es administrador (role 4)
+        if current_user.role_id == 4:
+            can_create = True
+        # Si el usuario actual es el mismo que el objetivo y es premium (role 2)
+        elif current_user_email == training_plan.user_email and current_user.role_id == 2:
+            can_create = True
+        # Si el usuario actual es un gimnasio (role 3) y el objetivo es premium (role 2)
+        elif current_user.role_id == 3 and target_user.role_id == 2:
+            # Verificar que el gimnasio puede gestionar el plan del usuario
+            user_gym = self.user_gym_repo.get_user_gym(target_user.email, current_user_email)
+            if user_gym and user_gym.is_active:
+                can_create = True
+                
+        if not can_create:
+            raise ValueError("No tienes permiso para crear planes de entrenamiento para este usuario")
+            
         # Crear el nuevo plan de entrenamiento
         new_training_plan = training_plans(**training_plan.model_dump())
+        
+        # Si el plan es creado por un gimnasio, establecer el user_gym_id
+        if current_user.role_id == 3:
+            user_gym = self.user_gym_repo.get_user_gym(target_user.email, current_user_email)
+            if user_gym:
+                new_training_plan.user_gym_id = user_gym.id
+                new_training_plan.is_gym_created = True
+        
         self.db.add(new_training_plan)
         self.db.commit()
         self.db.refresh(new_training_plan)
@@ -191,26 +266,51 @@ class TrainingPlanRepository():
         self.db.commit()
         return new_training_plan
 
-    def update_training_plan(self, id: int, training_plan: TrainingPlan, user: str) -> dict:
+    def update_training_plan(self, id: int, training_plan: TrainingPlan, current_user_email: str) -> dict:
         """
-        Actualiza un plan de entrenamiento por su ID.
+        Actualiza un plan de entrenamiento.
         
         Args:
-            id: ID del plan de entrenamiento
+            id: ID del plan a actualizar
             training_plan: Datos actualizados del plan
-            user: Email del usuario que solicita la actualización
+            current_user_email: Email del usuario que intenta actualizar el plan
             
         Returns:
             El plan de entrenamiento actualizado
         """
-        element = self.db.query(training_plans).\
-        filter(training_plans.id == id, training_plans.user_email == user).first()
-        if element:
-            element.name = training_plan.name
-            element.description = training_plan.description
-            element.tag_of_training_plan_id = training_plan.tag_of_training_plan_id
-            element.is_visible = training_plan.is_visible
-
-            self.db.commit()
-            self.db.refresh(element)
-        return element
+        # Obtener el plan de entrenamiento
+        plan = self.db.query(training_plans).filter(training_plans.id == id).first()
+        if not plan:
+            raise ValueError("Plan de entrenamiento no encontrado")
+            
+        # Obtener el usuario actual
+        current_user = self.db.query(User).filter(User.email == current_user_email).first()
+        if not current_user:
+            raise ValueError("Usuario no encontrado")
+            
+        # Verificar permisos
+        can_update = False
+        
+        # Si el usuario actual es administrador (role 4)
+        if current_user.role_id == 4:
+            can_update = True
+        # Si el usuario actual es el dueño del plan y es premium (role 2)
+        elif current_user_email == plan.user_email and current_user.role_id == 2:
+            can_update = True
+        # Si el usuario actual es un gimnasio (role 3) y el plan es gestionado por él
+        elif current_user.role_id == 3 and plan.is_gym_created:
+            user_gym = self.user_gym_repo.get_user_gym(plan.user_email, current_user_email)
+            if user_gym and user_gym.is_active:
+                can_update = True
+                
+        if not can_update:
+            raise ValueError("No tienes permiso para actualizar este plan de entrenamiento")
+            
+        # Actualizar los datos del plan
+        for key, value in training_plan.model_dump().items():
+            if key != 'id' and hasattr(plan, key):
+                setattr(plan, key, value)
+                
+        self.db.commit()
+        self.db.refresh(plan)
+        return plan
