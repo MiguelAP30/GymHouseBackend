@@ -11,8 +11,8 @@ class UserGymRepository():
     def __init__(self, db) -> None:
         self.db = db
 
-    def get_all_user_gym(self, current_user) -> List[UserGym]:
-        query = self.db.query(user_gym).filter(user_gym.gym_id == current_user)
+    def get_all_user_gym(self, current_user) -> List[user_gym]:
+        query = self.db.query(user_gym).join(Gym, user_gym.gym_id == Gym.id).filter(Gym.user_email == current_user)
         return query.all()
     
     def create_new_user_gym(self, user_gym_data: UserGymCreate) -> UserGym:
@@ -31,8 +31,7 @@ class UserGymRepository():
             raise ValueError("No se puede asociar un usuario gimnasio a otro gimnasio")
         
         # Verificar que el gimnasio no ha alcanzado su límite de usuarios
-        gym_user = self.db.query(user_gym).filter(user_gym.gym_id == user_gym_data.gym_id).first()
-        if gym_user and gym_user.current_users >= gym_user.max_users:
+        if gym.current_users >= gym.max_users:
             raise ValueError("El gimnasio ha alcanzado su límite de usuarios")
         
         # Crear la nueva relación
@@ -41,12 +40,11 @@ class UserGymRepository():
         
         # Actualizar el rol del usuario a premium (role_id = 2)
         user.role_id = 2
-        user.start_date = user_gym_data.start_date
+        user.start_date = date.today()
         user.final_date = user_gym_data.final_date
         
         # Incrementar el contador de usuarios del gimnasio
-        if gym_user:
-            gym_user.current_users += 1
+        gym.current_users += 1
         
         self.db.add(new_user_gym)
         self.db.commit()

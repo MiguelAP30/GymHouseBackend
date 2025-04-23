@@ -22,6 +22,8 @@ class Gym(Base):
     start_date = Column(Date)
     final_date = Column(Date)
     is_active = Column(Boolean)
+    max_users = Column(Integer, default=15)
+    current_users = Column(Integer, default=0)
 
     users = relationship("User", back_populates="gyms")
     users_gyms = relationship("UserGym", back_populates="gyms")

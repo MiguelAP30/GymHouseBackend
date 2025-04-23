@@ -154,7 +154,7 @@ def create_training_plan(credentials: Annotated[HTTPAuthorizationCredentials, De
         if status_user == False:
             return JSONResponse(content={"message": "Your account is disabled", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         training_plan.user_email = payload.get("sub")
-        new_training_plan = TrainingPlanRepository(db).create_new_training_plan(training_plan)
+        new_training_plan = TrainingPlanRepository(db).create_new_training_plan(training_plan, payload.get("sub"))  
         return JSONResponse(
             content={        
             "message": "The training plan was successfully created",        

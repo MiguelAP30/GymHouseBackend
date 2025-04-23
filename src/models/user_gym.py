@@ -12,8 +12,6 @@ class UserGym(Base):
     final_date = Column(Date)
     is_active = Column(Boolean, default=True)
     is_premium = Column(Boolean, default=False)
-    max_users = Column(Integer, default=15)  # Default number of users a gym can have
-    current_users = Column(Integer, default=0)  # Current number of users associated
 
     users = relationship("User", back_populates="users_gyms")
     gyms = relationship("Gym", back_populates="users_gyms")
