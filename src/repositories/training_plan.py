@@ -1,6 +1,6 @@
 from typing import List, Tuple, Optional
 from sqlalchemy import or_, func, and_
-from src.schemas.training_plan import TrainingPlan, TrainingPlanCreate
+from src.schemas.training_plan import TrainingPlan, TrainingPlanCreate, TrainingPlanCreateByGym, TrainingPlanUpdate
 from src.models.training_plan import TrainingPlan as training_plans
 from src.models.user import User
 from src.models.workout_day_exercise import WorkoutDayExercise as WorkoutDayExerciseModel
@@ -178,19 +178,19 @@ class TrainingPlanRepository():
             
         # Verificar permisos
         can_delete = False
-        
+
         # Si el usuario actual es administrador (role 4)
         if current_user.role_id == 4:
             can_delete = True
         # Si el usuario actual es el dueño del plan y es premium (role 2)
-        elif current_user_email == plan.user_email and current_user.role_id == 2:
+        elif current_user_email == plan.user_email and current_user.role_id >= 2:
             can_delete = True
-        # Si el usuario actual es un gimnasio (role 3) y el plan es gestionado por él
+        # Si el usuario actual es un gimnasio (role 3), el plan fue creado por un gym y ese gimnasio es el creador
         elif current_user.role_id == 3 and plan.is_gym_created:
             user_gym = self.user_gym_repo.get_user_gym(plan.user_email, current_user_email)
-            if user_gym and user_gym.is_active:
+            if user_gym and user_gym.is_active and plan.user_gym_id == user_gym.id:
                 can_delete = True
-                
+
         if not can_delete:
             raise ValueError("No tienes permiso para eliminar este plan de entrenamiento")
             
@@ -198,9 +198,10 @@ class TrainingPlanRepository():
         self.db.commit()
         return plan
 
-    def create_new_training_plan(self, training_plan: TrainingPlanCreate, current_user_email: str) -> dict:
+
+    def create_training_plan_as_user(self, training_plan: TrainingPlanCreate, current_user_email: str) -> training_plans:
         """
-        Crea un nuevo plan de entrenamiento.
+        Crea un nuevo plan de entrenamiento para el usuario actual.
         
         Args:
             training_plan: Datos del plan a crear
@@ -211,42 +212,22 @@ class TrainingPlanRepository():
         """
         # Obtener el usuario actual
         current_user = self.db.query(User).filter(User.email == current_user_email).first()
-        if not current_user:
-            raise ValueError("Usuario no encontrado")
-            
-        # Obtener el usuario objetivo
-        target_user = self.db.query(User).filter(User.email == training_plan.user_email).first()
-        if not target_user:
-            raise ValueError("Usuario objetivo no encontrado")
-            
-        # Verificar permisos
-        can_create = False
-        
-        # Si el usuario actual es administrador (role 4)
-        if current_user.role_id == 4:
-            can_create = True
-        # Si el usuario actual es el mismo que el objetivo y es premium (role 2)
-        elif current_user_email == training_plan.user_email and current_user.role_id == 2:
-            can_create = True
-        # Si el usuario actual es un gimnasio (role 3) y el objetivo es premium (role 2)
-        elif current_user.role_id == 3 and target_user.role_id == 2:
-            # Verificar que el gimnasio puede gestionar el plan del usuario
-            user_gym = self.user_gym_repo.get_user_gym(target_user.email, current_user_email)
-            if user_gym and user_gym.is_active:
-                can_create = True
-                
-        if not can_create:
-            raise ValueError("No tienes permiso para crear planes de entrenamiento para este usuario")
-            
+        if not current_user or current_user.role_id < 2:
+            raise ValueError("Usuario no autorizado")
+
+        # Verificar que el usuario actual solo cree planes para sí mismo
+        if training_plan.user_email != current_user_email:
+            raise ValueError("Solo puedes crear planes para ti mismo")
+
         # Crear el nuevo plan de entrenamiento
-        new_training_plan = training_plans(**training_plan.model_dump())
-        
-        # Si el plan es creado por un gimnasio, establecer el user_gym_id
-        if current_user.role_id == 3:
-            user_gym = self.user_gym_repo.get_user_gym(target_user.email, current_user_email)
-            if user_gym:
-                new_training_plan.user_gym_id = user_gym.id
-                new_training_plan.is_gym_created = True
+        new_training_plan = training_plans(
+            name=training_plan.name,
+            description=training_plan.description,
+            tag_of_training_plan_id=training_plan.tag_of_training_plan_id,
+            user_email=current_user_email,
+            is_visible=training_plan.is_visible,
+            is_gym_created=False
+        )
         
         self.db.add(new_training_plan)
         self.db.commit()
@@ -265,8 +246,51 @@ class TrainingPlanRepository():
 
         self.db.commit()
         return new_training_plan
+    
+    def create_plan_for_user_from_gym(self, training_plan: TrainingPlanCreateByGym, gym_email: str) -> training_plans:
+        # Verificar que el gimnasio exista
+        gym_user = self.db.query(User).filter(User.email == gym_email, User.role_id == 3).first()
+        if not gym_user:
+            raise ValueError("El usuario actual no es un gimnasio válido")
 
-    def update_training_plan(self, id: int, training_plan: TrainingPlan, current_user_email: str) -> dict:
+        # Verificar que el usuario destino exista
+        target_user = self.db.query(User).filter(User.email == training_plan.user_email).first()
+        if not target_user:
+            raise ValueError("Usuario objetivo no encontrado")
+
+        # Verificar relación activa entre gimnasio y usuario
+        user_gym = self.user_gym_repo.get_user_gym(user_email=training_plan.user_email, gym_email=gym_email)
+        if not user_gym or not user_gym.is_active:
+            raise ValueError("El usuario no está asociado activamente al gimnasio")
+
+        # Crear el plan
+        new_plan = training_plans(
+            name=training_plan.name,
+            description=training_plan.description,
+            tag_of_training_plan_id=training_plan.tag_of_training_plan_id,
+            user_email=training_plan.user_email,
+            user_gym_id=user_gym.id,
+            is_visible=training_plan.is_visible,
+            is_gym_created=True
+        )
+        self.db.add(new_plan)
+        self.db.commit()
+        self.db.refresh(new_plan)
+
+        # Crear workout_day_exercise para todos los días
+        week_days = self.db.query(WeekDayModel).all()
+        for week_day in week_days:
+            new_wde = WorkoutDayExerciseModel(
+                week_day_id=week_day.id,
+                training_plan_id=new_plan.id
+            )
+            self.db.add(new_wde)
+
+        self.db.commit()
+        return new_plan
+
+
+    def update_training_plan(self, id: int, training_plan: TrainingPlanUpdate, current_user_email: str) -> dict:
         """
         Actualiza un plan de entrenamiento.
         
@@ -295,12 +319,12 @@ class TrainingPlanRepository():
         if current_user.role_id == 4:
             can_update = True
         # Si el usuario actual es el dueño del plan y es premium (role 2)
-        elif current_user_email == plan.user_email and current_user.role_id == 2:
+        elif current_user_email == plan.user_email and current_user.role_id >= 2:
             can_update = True
-        # Si el usuario actual es un gimnasio (role 3) y el plan es gestionado por él
+        # Si el usuario actual es un gimnasio (role 3), el plan fue creado por un gym y ese gimnasio es el creador
         elif current_user.role_id == 3 and plan.is_gym_created:
             user_gym = self.user_gym_repo.get_user_gym(plan.user_email, current_user_email)
-            if user_gym and user_gym.is_active:
+            if user_gym and user_gym.is_active and plan.user_gym_id == user_gym.id:
                 can_update = True
                 
         if not can_update:

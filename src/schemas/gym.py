@@ -19,6 +19,8 @@ class Gym(BaseModel):
     start_date: str = Field(title="Fecha de inicio de la membresía")
     final_date: str = Field(title="Fecha de finalización de la membresía")
     is_active: bool = Field(title="Estado del gimnasio")
+    max_users: Optional[int] = Field(default=15, title="Máximo de usuarios")
+    current_users: Optional[int] = Field(default=0, title="Usuarios actuales")
     
     @validator("price")
     def price_must_be_positive(cls, v):
@@ -44,7 +46,9 @@ class Gym(BaseModel):
                 "country": "Perú",
                 "start_date": "2021-11-12",
                 "final_date": "2022-11-12",
-                "is_active": True
+                "is_active": True,
+                "max_users": 15,
+                "current_users": 0
             }
         }
 
@@ -64,6 +68,8 @@ class GymUpdate(BaseModel):
     start_date: str = Field(title="Fecha de inicio de la membresía")
     final_date: str = Field(title="Fecha de finalización de la membresía")
     is_active: bool = Field(title="Estado del gimnasio")
+    max_users: Optional[int] = Field(title="Máximo de usuarios")
+    current_users: Optional[int] = Field(title="Usuarios actuales")
     
     @validator("price")
     def price_must_be_positive(cls, v):
@@ -88,7 +94,9 @@ class GymUpdate(BaseModel):
                 "country": "Perú",
                 "start_date": "2021-11-12",
                 "final_date": "2022-11-12",
-                "is_active": True
+                "is_active": True,
+                "max_users": 15,
+                "current_users": 0
             }
         }
 
@@ -108,6 +116,8 @@ class GymCreate(BaseModel):
     start_date: str = Field(title="Fecha de inicio de la membresía")
     final_date: str = Field(title="Fecha de finalización de la membresía")
     is_active: bool = Field(title="Estado del gimnasio")
+    max_users: Optional[int] = Field(default=15, title="Máximo de usuarios")
+    current_users: Optional[int] = Field(default=0, title="Usuarios actuales")
     
     @validator("price")
     def price_must_be_positive(cls, v):
@@ -132,6 +142,8 @@ class GymCreate(BaseModel):
                 "country": "Perú",
                 "start_date": "2021-11-12",
                 "final_date": "2022-11-12",
-                "is_active": True
+                "is_active": True,
+                "max_users": 15,
+                "current_users": 0
             }
         }

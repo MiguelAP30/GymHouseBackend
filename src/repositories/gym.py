@@ -61,8 +61,38 @@ class GymRepository:
             gym_data = gym.model_dump()
             gym_data.pop('id', None)
             gym_data.pop('user_email', None)
-            for key, value in gym_data.items():
+            for key, value in gym_data.items(): 
                 setattr(element, key, value)
             self.db.commit()
             self.db.refresh(element)
         return element
+    
+    def increase_max_users (self, gym_id: int, new_max_users: int) -> dict:
+        """
+        Aumenta el límite máximo de usuarios de un gimnasio.
+        
+        Args:
+            gym_id: ID del gimnasio
+            new_max_users: Nuevo límite máximo de usuarios
+            
+        Returns:
+            El gimnasio actualizado
+        """
+        if new_max_users <= 0:
+            raise ValueError("El nuevo límite de usuarios debe ser mayor que 0")
+        
+        # Obtener el gimnasio
+        gym = self.db.query(GymModel).filter(GymModel.id == gym_id).first()
+        if not gym:
+            raise ValueError("El gimnasio no existe")
+        
+        # Verificar que el nuevo límite no sea menor que el número actual de usuarios
+        if new_max_users < gym.current_users:
+            raise ValueError("El nuevo límite no puede ser menor que el número actual de usuarios")
+        
+        # Actualizar el límite máximo
+        gym.max_users = new_max_users
+        self.db.commit()
+        self.db.refresh(gym)
+        
+        return {"message": "Límite de usuarios actualizado exitosamente", "data": gym}

@@ -4,7 +4,7 @@ from typing import Annotated, List, Optional
 from fastapi import APIRouter
 from src.config.database import SessionLocal 
 from fastapi.encoders import jsonable_encoder
-from src.schemas.training_plan import TrainingPlan, PaginatedTrainingPlanResponse
+from src.schemas.training_plan import TrainingPlan, PaginatedTrainingPlanResponse, TrainingPlanCreate, TrainingPlanCreateByGym, TrainingPlanUpdate
 from src.models.training_plan import TrainingPlan as training_plans
 from src.repositories.training_plan import TrainingPlanRepository
 from fastapi.security import HTTPAuthorizationCredentials
@@ -141,108 +141,73 @@ def get_training_plan_by_id(credentials: Annotated[HTTPAuthorizationCredentials,
             content=jsonable_encoder(existing_plan),                        
             status_code=status.HTTP_200_OK
         )
-
-@training_plan_router.post('', response_model=dict, description="Crea un nuevo plan de entrenamiento")
-def create_training_plan(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)], training_plan: TrainingPlan = Body()) -> dict:
+    
+@training_plan_router.post('/me', response_model=dict, description="Un usuario premium crea su propio plan")
+def create_training_plan_as_user(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)], training_plan: TrainingPlanCreate = Body()) -> dict:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
     if payload:
-        role_current_user = payload.get("user.role")
+        user_email = payload.get("sub")
+        role = payload.get("user.role")
         status_user = payload.get("user.status")
-        if role_current_user < 2:
-            return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
-        if status_user == False:
-            return JSONResponse(content={"message": "Your account is disabled", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
-        training_plan.user_email = payload.get("sub")
-        new_training_plan = TrainingPlanRepository(db).create_new_training_plan(training_plan, payload.get("sub"))  
-        return JSONResponse(
-            content={        
-            "message": "The training plan was successfully created",        
-            "data": jsonable_encoder(new_training_plan)    
-            }, 
-            status_code=status.HTTP_201_CREATED
-        )
 
-@training_plan_router.delete('/{id}', response_model=dict, description="Elimina un plan de entrenamiento específico")
-def remove_training_plan(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)], id: int = Path(ge=1)) -> dict:
-    db = SessionLocal()
-    payload = auth_handler.decode_token(credentials.credentials)
-    if payload:
-        role_current_user = payload.get("user.role")
-        status_user = payload.get("user.status")
-        if role_current_user < 2:
-            return JSONResponse(content={"message": "No tienes los permisos necesarios", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
+        if role < 2:
+            return JSONResponse(content={"message": "Solo usuarios premium pueden crear planes propios"}, status_code=status.HTTP_403_FORBIDDEN)
         if not status_user:
-            return JSONResponse(content={"message": "Tu cuenta está inactiva", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
-        
-        current_user = payload.get("sub")
-        
-        # Verificar que el plan existe
-        existing_plan = TrainingPlanRepository(db).get_training_plan_by_id(id)
-        if not existing_plan:
-            return JSONResponse(
-                content={            
-                    "message": "El plan de entrenamiento solicitado no fue encontrado",            
-                    "data": None        
-                }, 
-                status_code=status.HTTP_404_NOT_FOUND
-            )
-        
-        # Verificar que el usuario es el dueño o un administrador
-        if existing_plan.user_email != current_user and role_current_user != 4:
-            return JSONResponse(
-                content={"message": "No tienes permiso para eliminar este plan de entrenamiento", "data": None}, 
-                status_code=status.HTTP_403_FORBIDDEN
-            )
-        
-        # Eliminar el plan
-        deleted_plan = TrainingPlanRepository(db).delete_training_plan(id, current_user)
-        return JSONResponse(
-            content={
-                "message": "El plan de entrenamiento fue eliminado exitosamente",
-                "data": jsonable_encoder(deleted_plan)
-            },
-            status_code=status.HTTP_200_OK
-        )
+            return JSONResponse(content={"message": "Tu cuenta está inactiva"}, status_code=status.HTTP_403_FORBIDDEN)
 
-@training_plan_router.put('/{id}', response_model=dict, description="Actualiza un plan de entrenamiento específico")
-def update_training_plan(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)], id: int = Path(ge=1), training_plan: TrainingPlan = Body()) -> dict:
+        training_plan.user_email = user_email  # Seguridad: fuerza el email
+        new_plan = TrainingPlanRepository(db).create_training_plan_as_user(training_plan, user_email)
+        return JSONResponse(content={"message": "Plan creado exitosamente", "data": jsonable_encoder(new_plan)}, status_code=status.HTTP_201_CREATED)
+
+@training_plan_router.post('/gym', response_model=dict, description="Un gimnasio crea un plan para un usuario asociado")
+def create_training_plan_by_gym(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)], training_plan: TrainingPlanCreateByGym = Body()) -> dict:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
     if payload:
-        role_current_user = payload.get("user.role")
+        gym_email = payload.get("sub")
+        role = payload.get("user.role")
         status_user = payload.get("user.status")
-        if role_current_user < 2:
-            return JSONResponse(content={"message": "No tienes los permisos necesarios", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
+
+        if role != 3:
+            return JSONResponse(content={"message": "Solo gimnasios pueden usar esta función"}, status_code=status.HTTP_403_FORBIDDEN)
         if not status_user:
-            return JSONResponse(content={"message": "Tu cuenta está inactiva", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
-        
-        current_user = payload.get("sub")
-        
-        # Verificar que el plan existe
-        existing_plan = TrainingPlanRepository(db).get_training_plan_by_id(id)
-        if not existing_plan:
-            return JSONResponse(
-                content={            
-                    "message": "El plan de entrenamiento solicitado no fue encontrado",            
-                    "data": None        
-                }, 
-                status_code=status.HTTP_404_NOT_FOUND
-            )
-        
-        # Verificar que el usuario es el dueño o un administrador
-        if existing_plan.user_email != current_user and role_current_user != 4:
-            return JSONResponse(
-                content={"message": "No tienes permiso para actualizar este plan de entrenamiento", "data": None}, 
-                status_code=status.HTTP_403_FORBIDDEN
-            )
-        
-        # Actualizar el plan
-        updated_plan = TrainingPlanRepository(db).update_training_plan(id, training_plan, current_user)
-        return JSONResponse(
-            content={
-                "message": "El plan de entrenamiento fue actualizado exitosamente",
-                "data": jsonable_encoder(updated_plan)
-            },
-            status_code=status.HTTP_200_OK
-        )
+            return JSONResponse(content={"message": "Tu cuenta está inactiva"}, status_code=status.HTTP_403_FORBIDDEN)
+
+        new_plan = TrainingPlanRepository(db).create_plan_for_user_from_gym(training_plan, gym_email)
+        return JSONResponse(content={"message": "Plan creado por gimnasio exitosamente", "data": jsonable_encoder(new_plan)}, status_code=status.HTTP_201_CREATED)
+
+
+@training_plan_router.delete('/{id}', response_model=dict, description="Elimina un plan de entrenamiento")
+def delete_training_plan(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)], id: int = Path(ge=1)) -> dict:
+    db = SessionLocal()
+    payload = auth_handler.decode_token(credentials.credentials)
+    if payload:
+        user_email = payload.get("sub")
+        role = payload.get("user.role")
+        status_user = payload.get("user.status")
+
+        if role < 2:
+            return JSONResponse(content={"message": "No tienes permisos suficientes"}, status_code=status.HTTP_403_FORBIDDEN)
+        if not status_user:
+            return JSONResponse(content={"message": "Cuenta inactiva"}, status_code=status.HTTP_403_FORBIDDEN)
+
+        deleted = TrainingPlanRepository(db).delete_training_plan(id, user_email)
+        return JSONResponse(content={"message": "Plan eliminado exitosamente", "data": jsonable_encoder(deleted)}, status_code=status.HTTP_200_OK)
+
+@training_plan_router.put('/{id}', response_model=dict, description="Actualiza un plan de entrenamiento")
+def update_training_plan(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)], id: int = Path(ge=1), training_plan: TrainingPlanUpdate = Body()) -> dict:
+    db = SessionLocal()
+    payload = auth_handler.decode_token(credentials.credentials)
+    if payload:
+        user_email = payload.get("sub")
+        role = payload.get("user.role")
+        status_user = payload.get("user.status")
+
+        if role < 2:
+            return JSONResponse(content={"message": "No tienes permisos suficientes"}, status_code=status.HTTP_403_FORBIDDEN)
+        if not status_user:
+            return JSONResponse(content={"message": "Tu cuenta está inactiva"}, status_code=status.HTTP_403_FORBIDDEN)
+
+        updated = TrainingPlanRepository(db).update_training_plan(id, training_plan, user_email)
+        return JSONResponse(content={"message": "Plan actualizado exitosamente", "data": jsonable_encoder(updated)}, status_code=status.HTTP_200_OK)

@@ -131,7 +131,7 @@ class WorkoutDayExerciseRepository:
         """
         # Obtener el usuario actual
         current_user = self.db.query(UserModel).filter(UserModel.email == user_email).first()
-        if not current_user:
+        if not current_user:    
             raise ValueError("Usuario no encontrado")
 
         # Obtener el plan de entrenamiento
@@ -152,14 +152,15 @@ class WorkoutDayExerciseRepository:
         if current_user.role_id == 4:
             can_create = True
         # Si el usuario actual es el mismo que el objetivo y es premium (role 2)
-        elif user_email == training_plan.user_email and current_user.role_id == 2:
+        elif user_email == training_plan.user_email and current_user.role_id >= 2:
             can_create = True
-        # Si el usuario actual es un gimnasio (role 3) y el objetivo es premium (role 2)
-        elif current_user.role_id == 3 and target_user.role_id == 2:
-            # Verificar que el gimnasio puede gestionar el plan del usuario
-            user_gym = self.user_gym_repo.get_user_gym(target_user.email, user_email)
-            if user_gym and user_gym.is_active:
+        #Verifica que el plan fue creado por un gimnasio, que el gimnasio está asociado con el usuario (user_gym.is_active) y 
+        #que ese mismo gimnasio fue el que creó el plan (training_plan.user_gym_id == user_gym.id).
+        elif current_user.role_id == 3 and training_plan.is_gym_created:
+            user_gym = self.user_gym_repo.get_user_gym(training_plan.user_email, user_email)
+            if user_gym and user_gym.is_active and training_plan.user_gym_id == user_gym.id:
                 can_create = True
+
 
         if not can_create:
             raise ValueError("No tienes permiso para crear ejercicios para este plan de entrenamiento")
@@ -178,7 +179,7 @@ class WorkoutDayExerciseRepository:
             ).first()
         
         if existing_workout:
-            raise ValueError(f"Ya existe un ejercicio para el día {workout_day_exercise.week_day_id} en el plan de entrenamiento {workout_day_exercise.training_plan_id}")
+            raise ValueError(f"Ya existe el día {workout_day_exercise.week_day_id} en el plan de entrenamiento {workout_day_exercise.training_plan_id}")
         
         new_workout_day_exercise = WorkoutDayExerciseModel(**workout_day_exercise.model_dump())
         self.db.add(new_workout_day_exercise)
@@ -229,13 +230,13 @@ class WorkoutDayExerciseRepository:
         if current_user.role_id == 4:
             can_update = True
         # Si el usuario actual es el mismo que el objetivo y es premium (role 2)
-        elif user_email == training_plan.user_email and current_user.role_id == 2:
+        elif user_email == training_plan.user_email and current_user.role_id >= 2:
             can_update = True
-        # Si el usuario actual es un gimnasio (role 3) y el objetivo es premium (role 2)
-        elif current_user.role_id == 3 and target_user.role_id == 2:
-            # Verificar que el gimnasio puede gestionar el plan del usuario
-            user_gym = self.user_gym_repo.get_user_gym(target_user.email, user_email)
-            if user_gym and user_gym.is_active:
+        #Verifica que el plan fue creado por un gimnasio, que el gimnasio está asociado con el usuario (user_gym.is_active) y 
+        #que ese mismo gimnasio fue el que creó el plan (training_plan.user_gym_id == user_gym.id).
+        elif current_user.role_id == 3 and training_plan.is_gym_created:
+            user_gym = self.user_gym_repo.get_user_gym(training_plan.user_email, user_email)
+            if user_gym and user_gym.is_active and training_plan.user_gym_id == user_gym.id:
                 can_update = True
 
         if not can_update:
@@ -306,11 +307,11 @@ class WorkoutDayExerciseRepository:
         # Si el usuario actual es el mismo que el objetivo y es premium (role 2)
         elif user_email == training_plan.user_email and current_user.role_id == 2:
             can_delete = True
-        # Si el usuario actual es un gimnasio (role 3) y el objetivo es premium (role 2)
-        elif current_user.role_id == 3 and target_user.role_id == 2:
-            # Verificar que el gimnasio puede gestionar el plan del usuario
-            user_gym = self.user_gym_repo.get_user_gym(target_user.email, user_email)
-            if user_gym and user_gym.is_active:
+        #Verifica que el plan fue creado por un gimnasio, que el gimnasio está asociado con el usuario (user_gym.is_active) y 
+        #que ese mismo gimnasio fue el que creó el plan (training_plan.user_gym_id == user_gym.id).
+        elif current_user.role_id == 3 and training_plan.is_gym_created:
+            user_gym = self.user_gym_repo.get_user_gym(training_plan.user_email, user_email)
+            if user_gym and user_gym.is_active and training_plan.user_gym_id == user_gym.id:
                 can_delete = True
 
         if not can_delete:

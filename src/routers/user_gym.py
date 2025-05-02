@@ -114,24 +114,4 @@ def remove_user_from_gym(
                 return JSONResponse(content={"message": str(e), "data": None}, status_code=status.HTTP_400_BAD_REQUEST)
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@user_gym_router.put('/gym/{gym_id}/max-users', response_model=dict, description="Aumenta el límite máximo de usuarios de un gimnasio")
-def increase_max_users(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
-    gym_id: int = Path(ge=1),
-    new_max_users: int = Query(ge=1, description="Nuevo límite máximo de usuarios")
-) -> dict:
-    db = SessionLocal()
-    payload = auth_handler.decode_token(credentials.credentials)
-    if payload:
-        role_current_user = payload.get("user.role")
-        status_user = payload.get("user.status")
-        if role_current_user < 3:  # Solo gimnasios pueden aumentar su límite
-            return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
-        if status_user:
-            try:
-                result = UserGymRepository(db).increase_max_users(gym_id, new_max_users)
-                return JSONResponse(content=result, status_code=status.HTTP_200_OK)
-            except ValueError as e:
-                return JSONResponse(content={"message": str(e), "data": None}, status_code=status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 

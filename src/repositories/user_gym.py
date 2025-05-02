@@ -94,36 +94,6 @@ class UserGymRepository():
         
         return {"message": "Usuario eliminado exitosamente del gimnasio", "data": None}
     
-    def increase_max_users(self, gym_id: int, new_max_users: int) -> dict:
-        """
-        Aumenta el límite máximo de usuarios de un gimnasio.
-        
-        Args:
-            gym_id: ID del gimnasio
-            new_max_users: Nuevo límite máximo de usuarios
-            
-        Returns:
-            El gimnasio actualizado
-        """
-        if new_max_users <= 0:
-            raise ValueError("El nuevo límite de usuarios debe ser mayor que 0")
-        
-        # Obtener el gimnasio
-        gym = self.db.query(Gym).filter(Gym.id == gym_id).first()
-        if not gym:
-            raise ValueError("El gimnasio no existe")
-        
-        # Verificar que el nuevo límite no sea menor que el número actual de usuarios
-        if new_max_users < gym.current_users:
-            raise ValueError("El nuevo límite no puede ser menor que el número actual de usuarios")
-        
-        # Actualizar el límite máximo
-        gym.max_users = new_max_users
-        self.db.commit()
-        self.db.refresh(gym)
-        
-        return {"message": "Límite de usuarios actualizado exitosamente", "data": gym}
-    
     def update_user_gym(self, id: int, user_gym_data: UserGym) -> UserGym:
         element = self.db.query(user_gym).filter(user_gym.id == id).first()
         if element:
