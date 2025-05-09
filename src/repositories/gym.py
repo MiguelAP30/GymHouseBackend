@@ -67,6 +67,9 @@ class GymRepository:
             self.db.refresh(element)
         return element
     
+    def get_gym_by_email(self, email: str) -> GymModel:
+        return self.db.query(GymModel).filter(GymModel.user_email == email).first()
+    
     def increase_max_users (self, gym_id: int, new_max_users: int) -> dict:
         """
         Aumenta el límite máximo de usuarios de un gimnasio.

@@ -5,11 +5,13 @@ from src.models.workout_day_exercise import WorkoutDayExercise as WorkoutDayExer
 from src.models.training_plan import TrainingPlan as TrainingPlanModel
 from src.models.user import User as UserModel
 from src.repositories.user_gym import UserGymRepository
+from src.repositories.gym import GymRepository
 
 class ExerciseConfigurationRepository():
     def __init__(self, db) -> None:
         self.db = db
         self.user_gym_repo = UserGymRepository(db)
+        self.gym_repo = GymRepository(db)
     
     def get_all_exercise_configurations(self) -> List[ExerciseConfiguration]:
         """
@@ -104,10 +106,11 @@ class ExerciseConfigurationRepository():
             can_delete = True
         #Verifica que el plan fue creado por un gimnasio, que el gimnasio está asociado con el usuario (user_gym.is_active) y 
         #que ese mismo gimnasio fue el que creó el plan (training_plan.user_gym_id == user_gym.id).
-        elif current_user.role_id == 3 and training_plan.is_gym_created:
-            user_gym = self.user_gym_repo.get_user_gym(training_plan.user_email, user_email)
+        gym = self.gym_repo.get_gym_by_email(training_plan.user_email)
+        if current_user.role_id == 3 and training_plan.is_gym_created and gym:
+            user_gym = self.user_gym_repo.get_user_gym(training_plan.user_email, gym.id)
             if user_gym and user_gym.is_active and training_plan.user_gym_id == user_gym.id:
-                can_create = True
+                can_delete = True
 
         if not can_delete:
             raise ValueError("No tienes permiso para eliminar esta configuración de ejercicio")
@@ -164,8 +167,9 @@ class ExerciseConfigurationRepository():
             can_create = True
         #Verifica que el plan fue creado por un gimnasio, que el gimnasio está asociado con el usuario (user_gym.is_active) y 
         #que ese mismo gimnasio fue el que creó el plan (training_plan.user_gym_id == user_gym.id).
-        elif current_user.role_id == 3 and training_plan.is_gym_created:
-            user_gym = self.user_gym_repo.get_user_gym(training_plan.user_email, user_email)
+        gym = self.gym_repo.get_gym_by_email(training_plan.user_email)
+        if current_user.role_id == 3 and training_plan.is_gym_created and gym:
+            user_gym = self.user_gym_repo.get_user_gym(training_plan.user_email, gym.id)
             if user_gym and user_gym.is_active and training_plan.user_gym_id == user_gym.id:
                 can_create = True
 
@@ -230,10 +234,11 @@ class ExerciseConfigurationRepository():
             can_update = True
         #Verifica que el plan fue creado por un gimnasio, que el gimnasio está asociado con el usuario (user_gym.is_active) y 
         #que ese mismo gimnasio fue el que creó el plan (training_plan.user_gym_id == user_gym.id).
-        elif current_user.role_id == 3 and training_plan.is_gym_created:
-            user_gym = self.user_gym_repo.get_user_gym(training_plan.user_email, user_email)
+        gym = self.gym_repo.get_gym_by_email(training_plan.user_email)
+        if current_user.role_id == 3 and training_plan.is_gym_created and gym:
+            user_gym = self.user_gym_repo.get_user_gym(training_plan.user_email, gym.id)
             if user_gym and user_gym.is_active and training_plan.user_gym_id == user_gym.id:
-                can_create = True
+                can_update = True
 
         if not can_update:
             raise ValueError("No tienes permiso para actualizar esta configuración de ejercicio")

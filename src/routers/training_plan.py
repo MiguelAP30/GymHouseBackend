@@ -105,42 +105,24 @@ def get_training_plan_by_id(credentials: Annotated[HTTPAuthorizationCredentials,
         current_user = payload.get("sub")
         
         # Obtener el plan de entrenamiento sin filtrar por usuario
-        existing_plan = TrainingPlanRepository(db).get_training_plan_by_id(id)
-        
-        if not existing_plan:
-            return JSONResponse(
-                content={            
-                    "message": "El plan de entrenamiento solicitado no fue encontrado",            
-                    "data": None        
-                }, 
-                status_code=status.HTTP_404_NOT_FOUND
-            )
-            
-        # Si el plan es público, cualquiera puede verlo
-        if existing_plan.is_visible:
-            return JSONResponse(
-                content=jsonable_encoder(existing_plan),                        
-                status_code=status.HTTP_200_OK
-            )
-            
-        # Si el plan es privado, verificar permisos
-        if not status_user:
-            return JSONResponse(
-                content={"message": "Tu cuenta está inactiva", "data": None}, 
-                status_code=status.HTTP_401_UNAUTHORIZED
-            )
-            
-        # Verificar si el usuario es el dueño o un administrador
-        if existing_plan.user_email != current_user and role_current_user != 4:
-            return JSONResponse(
-                content={"message": "No tienes permiso para ver este plan de entrenamiento", "data": None}, 
-                status_code=status.HTTP_403_FORBIDDEN
-            )
-            
-        return JSONResponse(
-            content=jsonable_encoder(existing_plan),                        
-            status_code=status.HTTP_200_OK
-        )
+        try:
+            existing_plan = TrainingPlanRepository(db).get_training_plan_by_id(id)
+            if not existing_plan:
+                return JSONResponse(content={"message": "El plan no fue encontrado", "data": None}, status_code=status.HTTP_404_NOT_FOUND)
+
+            if existing_plan.is_visible:
+                return JSONResponse(content={"message": "Plan obtenido exitosamente", "data": jsonable_encoder(existing_plan)}, status_code=status.HTTP_200_OK)
+
+            if not status_user:
+                return JSONResponse(content={"message": "Tu cuenta está inactiva", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
+
+            if existing_plan.user_email != current_user and role_current_user != 4:
+                return JSONResponse(content={"message": "No tienes permiso para ver este plan", "data": None}, status_code=status.HTTP_403_FORBIDDEN)
+
+            return JSONResponse(content={"message": "Plan obtenido exitosamente", "data": jsonable_encoder(existing_plan)}, status_code=status.HTTP_200_OK)
+
+        except Exception as e:
+            return JSONResponse(content={"message": f"Error al obtener el plan: {str(e)}", "data": None}, status_code=status.HTTP_400_BAD_REQUEST)
     
 @training_plan_router.post('/me', response_model=dict, description="Un usuario premium crea su propio plan")
 def create_training_plan_as_user(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)], training_plan: TrainingPlanCreate = Body()) -> dict:
@@ -157,8 +139,13 @@ def create_training_plan_as_user(credentials: Annotated[HTTPAuthorizationCredent
             return JSONResponse(content={"message": "Tu cuenta está inactiva"}, status_code=status.HTTP_403_FORBIDDEN)
 
         training_plan.user_email = user_email  # Seguridad: fuerza el email
-        new_plan = TrainingPlanRepository(db).create_training_plan_as_user(training_plan, user_email)
-        return JSONResponse(content={"message": "Plan creado exitosamente", "data": jsonable_encoder(new_plan)}, status_code=status.HTTP_201_CREATED)
+        try:
+            new_plan = TrainingPlanRepository(db).create_training_plan_as_user(training_plan, user_email)
+            return JSONResponse(content={"message": "Plan creado exitosamente", "data": jsonable_encoder(new_plan)}, status_code=status.HTTP_201_CREATED)
+        except ValueError as e:
+            return JSONResponse(content={"message": str(e), "data": None}, status_code=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return JSONResponse(content={"message": "Error interno del servidor", "error": str(e)}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @training_plan_router.post('/gym', response_model=dict, description="Un gimnasio crea un plan para un usuario asociado")
 def create_training_plan_by_gym(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)], training_plan: TrainingPlanCreateByGym = Body()) -> dict:
@@ -169,13 +156,16 @@ def create_training_plan_by_gym(credentials: Annotated[HTTPAuthorizationCredenti
         role = payload.get("user.role")
         status_user = payload.get("user.status")
 
-        if role != 3:
-            return JSONResponse(content={"message": "Solo gimnasios pueden usar esta función"}, status_code=status.HTTP_403_FORBIDDEN)
+        if role < 3:
+            return JSONResponse(content={"message": "Solo gimnasios o administradores pueden usar esta función"}, status_code=status.HTTP_403_FORBIDDEN)
         if not status_user:
             return JSONResponse(content={"message": "Tu cuenta está inactiva"}, status_code=status.HTTP_403_FORBIDDEN)
-
-        new_plan = TrainingPlanRepository(db).create_plan_for_user_from_gym(training_plan, gym_email)
-        return JSONResponse(content={"message": "Plan creado por gimnasio exitosamente", "data": jsonable_encoder(new_plan)}, status_code=status.HTTP_201_CREATED)
+        
+        try:
+            new_plan = TrainingPlanRepository(db).create_plan_for_user_from_gym(training_plan, gym_email)
+            return JSONResponse(content={"message": "Plan creado por gimnasio exitosamente", "data": jsonable_encoder(new_plan)}, status_code=status.HTTP_201_CREATED)
+        except ValueError as e:
+            return JSONResponse(content={"message": str(e), "data": None}, status_code=status.HTTP_400_BAD_REQUEST)
 
 
 @training_plan_router.delete('/{id}', response_model=dict, description="Elimina un plan de entrenamiento")
@@ -192,8 +182,11 @@ def delete_training_plan(credentials: Annotated[HTTPAuthorizationCredentials, De
         if not status_user:
             return JSONResponse(content={"message": "Cuenta inactiva"}, status_code=status.HTTP_403_FORBIDDEN)
 
+    try:
         deleted = TrainingPlanRepository(db).delete_training_plan(id, user_email)
         return JSONResponse(content={"message": "Plan eliminado exitosamente", "data": jsonable_encoder(deleted)}, status_code=status.HTTP_200_OK)
+    except ValueError as e:
+        return JSONResponse(content={"message": str(e), "data": None}, status_code=status.HTTP_400_BAD_REQUEST)
 
 @training_plan_router.put('/{id}', response_model=dict, description="Actualiza un plan de entrenamiento")
 def update_training_plan(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)], id: int = Path(ge=1), training_plan: TrainingPlanUpdate = Body()) -> dict:
@@ -209,5 +202,8 @@ def update_training_plan(credentials: Annotated[HTTPAuthorizationCredentials, De
         if not status_user:
             return JSONResponse(content={"message": "Tu cuenta está inactiva"}, status_code=status.HTTP_403_FORBIDDEN)
 
+    try:
         updated = TrainingPlanRepository(db).update_training_plan(id, training_plan, user_email)
-        return JSONResponse(content={"message": "Plan actualizado exitosamente", "data": jsonable_encoder(updated)}, status_code=status.HTTP_200_OK)
+        return JSONResponse(content={"message": "Plan actualizado correctamente", "data": jsonable_encoder(updated)}, status_code=status.HTTP_200_OK)
+    except ValueError as e:
+        return JSONResponse(content={"message": str(e), "data": None}, status_code=status.HTTP_400_BAD_REQUEST)

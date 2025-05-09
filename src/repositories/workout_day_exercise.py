@@ -6,6 +6,7 @@ from src.models.week_day import WeekDay as WeekDayModel
 from src.models.exercise_configuration import ExerciseConfiguration as ExerciseConfigurationModel
 from src.models.user import User as UserModel
 from src.repositories.user_gym import UserGymRepository
+from src.repositories.gym import GymRepository
 
 
 class WorkoutDayExerciseRepository:
@@ -24,6 +25,7 @@ class WorkoutDayExerciseRepository:
         """
         self.db = db
         self.user_gym_repo = UserGymRepository(db)
+        self.gym_repo = GymRepository(db)
 
     def get_all_workout_day_exercises(self) -> List[WorkoutDayExercise]:
         """
@@ -156,10 +158,11 @@ class WorkoutDayExerciseRepository:
             can_create = True
         #Verifica que el plan fue creado por un gimnasio, que el gimnasio está asociado con el usuario (user_gym.is_active) y 
         #que ese mismo gimnasio fue el que creó el plan (training_plan.user_gym_id == user_gym.id).
-        elif current_user.role_id == 3 and training_plan.is_gym_created:
-            user_gym = self.user_gym_repo.get_user_gym(training_plan.user_email, user_email)
+        gym = self.gym_repo.get_gym_by_email(user_email)
+        if gym and current_user.role_id == 3 and training_plan.is_gym_created:
+            user_gym = self.user_gym_repo.get_user_gym(training_plan.user_email, gym.id)
             if user_gym and user_gym.is_active and training_plan.user_gym_id == user_gym.id:
-                can_create = True
+                can_create = True  
 
 
         if not can_create:
@@ -234,8 +237,9 @@ class WorkoutDayExerciseRepository:
             can_update = True
         #Verifica que el plan fue creado por un gimnasio, que el gimnasio está asociado con el usuario (user_gym.is_active) y 
         #que ese mismo gimnasio fue el que creó el plan (training_plan.user_gym_id == user_gym.id).
-        elif current_user.role_id == 3 and training_plan.is_gym_created:
-            user_gym = self.user_gym_repo.get_user_gym(training_plan.user_email, user_email)
+        gym = self.gym_repo.get_gym_by_email(user_email)
+        if gym and current_user.role_id == 3 and training_plan.is_gym_created:
+            user_gym = self.user_gym_repo.get_user_gym(training_plan.user_email, gym.id)
             if user_gym and user_gym.is_active and training_plan.user_gym_id == user_gym.id:
                 can_update = True
 
@@ -305,12 +309,17 @@ class WorkoutDayExerciseRepository:
         if current_user.role_id == 4:
             can_delete = True
         # Si el usuario actual es el mismo que el objetivo y es premium (role 2)
-        elif user_email == training_plan.user_email and current_user.role_id == 2:
+        elif user_email == training_plan.user_email and current_user.role_id >= 2:
             can_delete = True
         #Verifica que el plan fue creado por un gimnasio, que el gimnasio está asociado con el usuario (user_gym.is_active) y 
         #que ese mismo gimnasio fue el que creó el plan (training_plan.user_gym_id == user_gym.id).
-        elif current_user.role_id == 3 and training_plan.is_gym_created:
-            user_gym = self.user_gym_repo.get_user_gym(training_plan.user_email, user_email)
+        gym = self.gym_repo.get_gym_by_email(user_email)
+        if gym and current_user.role_id == 3 and training_plan.is_gym_created:
+            
+            user_gym = self.user_gym_repo.get_user_gym(training_plan.user_email, gym.id)
+            print(user_gym)
+            print(training_plan.user_email)
+            print(gym.id)
             if user_gym and user_gym.is_active and training_plan.user_gym_id == user_gym.id:
                 can_delete = True
 

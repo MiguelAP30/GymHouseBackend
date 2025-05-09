@@ -8,11 +8,15 @@ from src.models.week_day import WeekDay as WeekDayModel
 from src.models.like import Like as LikeModel
 from src.models.user_gym import UserGym
 from src.repositories.user_gym import UserGymRepository
+from src.models.gym import Gym
+from src.repositories.gym import GymRepository
+
 
 class TrainingPlanRepository():
     def __init__(self, db) -> None:
         self.db = db
         self.user_gym_repo = UserGymRepository(db)
+        self.gym_repo = GymRepository(db)
     
     def get_all_training_plans(
         self, 
@@ -175,7 +179,6 @@ class TrainingPlanRepository():
         current_user = self.db.query(User).filter(User.email == current_user_email).first()
         if not current_user:
             raise ValueError("Usuario no encontrado")
-            
         # Verificar permisos
         can_delete = False
 
@@ -186,8 +189,9 @@ class TrainingPlanRepository():
         elif current_user_email == plan.user_email and current_user.role_id >= 2:
             can_delete = True
         # Si el usuario actual es un gimnasio (role 3), el plan fue creado por un gym y ese gimnasio es el creador
-        elif current_user.role_id == 3 and plan.is_gym_created:
-            user_gym = self.user_gym_repo.get_user_gym(plan.user_email, current_user_email)
+        gym = self.gym_repo.get_gym_by_email(current_user_email)
+        if current_user.role_id == 3 and plan.is_gym_created and gym:
+            user_gym = self.user_gym_repo.get_user_gym(plan.user_email, gym.id)
             if user_gym and user_gym.is_active and plan.user_gym_id == user_gym.id:
                 can_delete = True
 
@@ -257,9 +261,14 @@ class TrainingPlanRepository():
         target_user = self.db.query(User).filter(User.email == training_plan.user_email).first()
         if not target_user:
             raise ValueError("Usuario objetivo no encontrado")
+        
+        # Obtener el gimnasio desde la tabla gyms
+        gym = self.gym_repo.get_gym_by_email(gym_email)
+        if not gym:
+            raise ValueError("No se encontró el gimnasio correspondiente al email")
 
         # Verificar relación activa entre gimnasio y usuario
-        user_gym = self.user_gym_repo.get_user_gym(user_email=training_plan.user_email, gym_email=gym_email)
+        user_gym = self.user_gym_repo.get_user_gym(user_email=training_plan.user_email, gym_id=gym.id)
         if not user_gym or not user_gym.is_active:
             raise ValueError("El usuario no está asociado activamente al gimnasio")
 
@@ -322,11 +331,12 @@ class TrainingPlanRepository():
         elif current_user_email == plan.user_email and current_user.role_id >= 2:
             can_update = True
         # Si el usuario actual es un gimnasio (role 3), el plan fue creado por un gym y ese gimnasio es el creador
-        elif current_user.role_id == 3 and plan.is_gym_created:
-            user_gym = self.user_gym_repo.get_user_gym(plan.user_email, current_user_email)
+        gym = self.gym_repo.get_gym_by_email(current_user_email)
+        if current_user.role_id == 3 and plan.is_gym_created and gym:
+            user_gym = self.user_gym_repo.get_user_gym(plan.user_email, gym.id)
             if user_gym and user_gym.is_active and plan.user_gym_id == user_gym.id:
                 can_update = True
-                
+        
         if not can_update:
             raise ValueError("No tienes permiso para actualizar este plan de entrenamiento")
             
