@@ -9,8 +9,10 @@ class ExerciseConfiguration(Base):
     exercise_id = Column(Integer, ForeignKey("exercises.id"))
     workout_day_exercise_id = Column(Integer, ForeignKey("workout_day_exercises.id"))
     sets = Column(Integer)
-    reps = Column(Integer)
+    repsHigh = Column(Integer)
+    repsLow = Column(Integer)
     rest = Column(Float)
+    notes = Column(String(255))
 
     exercises = relationship("Exercise", back_populates="exercise_configurations")
     workout_day_exercise = relationship("WorkoutDayExercise", back_populates="exercise_configurations")

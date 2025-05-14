@@ -9,7 +9,15 @@ class Profile(Base):
     user_email = Column(String(length=250), ForeignKey("users.email"))
     weight = Column(Float)
     height = Column(Float)
-    physical_activity = Column(Integer)
+    physical_activity = Column(Integer) # Actividad fisica
+    fat = Column(Float)                 # Grasa corporal
+    muscle = Column(Float)              # Masa muscular
+    chest = Column(Float)               # medida Pecho
+    waist = Column(Float)               # medida Cintura
+    hips = Column(Float)                # medida Caderas
+    biceps = Column(Float)              # medida Bíceps
+    thigh = Column(Float)               # medida Muslos
+    notes = Column(String(length=255))  # Notas
     date = Column(Date)
 
     users = relationship("User", back_populates="profiles")

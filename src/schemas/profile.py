@@ -7,26 +7,15 @@ class Profile(BaseModel):
     weight: float = Field(title="Peso")
     height: float = Field(title="Altura")
     physical_activity: int = Field(title="Actividad física")
+    fat: Optional[float] = Field(default=None, title="Grasa corporal")
+    muscle: Optional[float] = Field(default=None, title="Masa muscular")
+    chest: Optional[float] = Field(default=None, title="Medida del pecho")
+    waist: Optional[float] = Field(default=None, title="Medida de la cintura")
+    hips: Optional[float] = Field(default=None, title="Medida de las caderas")
+    biceps: Optional[float] = Field(default=None, title="Medida de los bíceps")
+    thigh: Optional[float] = Field(default=None, title="Medida de los muslos")
+    notes: Optional[str] = Field(default=None, title="Notas")
     date: str = Field(title="Fecha")
-    
-    @validator("weight")
-    def weight_must_be_positive(cls, v):
-        if v <= 0:
-            raise ValueError("El peso debe ser positivo")
-        return v
-    
-    @validator("height")
-    def height_must_be_positive(cls, v):
-        if v <= 0:
-            raise ValueError("La altura debe ser positiva")
-        return v
-    
-    @validator("physical_activity")
-    def physical_activity_must_be_positive(cls, v):
-        if v <= 0:
-            raise ValueError("La actividad física debe ser positiva")
-        return v
-    
     class Config:
         json_schema_extra = {
             "example": {
@@ -34,6 +23,14 @@ class Profile(BaseModel):
                 "weight": 70.0,
                 "height": 1.70,
                 "physical_activity": 1,
+                "fat": 15.0,
+                "muscle": 30.0,
+                "chest": 100.0,
+                "waist": 80.0,
+                "hips": 90.0,
+                "biceps": 30.0,
+                "thigh": 50.0,
+                "notes": "Notas del perfil",
                 "date": "2021-11-12"
             }
         }
