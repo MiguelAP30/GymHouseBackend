@@ -317,7 +317,15 @@ class AuthRepository:
             self.db.commit()
             self.db.refresh(user)
             
-            return {"message": "Cuenta habilitada exitosamente"}
+            # Generar nuevos tokens con el estado actualizado
+            access_token = auth_handler.encode_token(user)
+            refresh_token = auth_handler.encode_refresh_token(user)
+            
+            return {
+                "message": "Cuenta habilitada exitosamente",
+                "access_token": access_token,
+                "refresh_token": refresh_token
+            }
             
         except HTTPException as he:
             raise he

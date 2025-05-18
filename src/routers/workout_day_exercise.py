@@ -33,7 +33,10 @@ def get_all_my_workout_day_exercises(credentials: Annotated[HTTPAuthorizationCre
             return JSONResponse(content={"message": "Insufficient privileges"}, status_code=status.HTTP_403_FORBIDDEN)
         
 @workout_day_exercise_router.get('/{id}',response_model=WorkoutDayExercise,description="Devuelve un entrenamiento específico por día de la semana")
-def get_workout_day_exercise(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], id: int = Path(ge=1)) -> WorkoutDayExercise:
+def get_workout_day_exercise(
+    credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)],
+    id: int = Path(ge=1)
+) -> WorkoutDayExercise:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
     if payload:
@@ -41,19 +44,17 @@ def get_workout_day_exercise(credentials: Annotated[HTTPAuthorizationCredentials
         status_user = payload.get("user.status")
         if role_user >= 2 and status_user:
             current_user = payload.get("sub")
-            element=  WorkoutDayExerciseRepository(db).get_workout_day_exercise_by_id(id)
-            if not element:        
+            repo = WorkoutDayExerciseRepository(db)
+            element = repo.get_workout_day_exercise_by_id(id)
+            if not element:
                 return JSONResponse(
-                    content={            
-                        "message": "The requested exercise per week day was not found",            
-                        "data": None        
-                        }, 
+                    content={"message": "The requested exercise per week day was not found", "data": None},
                     status_code=status.HTTP_404_NOT_FOUND
-                    )    
-            return JSONResponse(
-                content=jsonable_encoder(element),                        
-                status_code=status.HTTP_200_OK
                 )
+            permissions = repo.check_user_permissions_on_workout_day_exercise(id, current_user)
+            response = jsonable_encoder(element)
+            response['permissions'] = permissions
+            return JSONResponse(content=response, status_code=status.HTTP_200_OK)
         elif not status_user:
             return JSONResponse(content={"message": "User is inactive"}, status_code=status.HTTP_403_FORBIDDEN)
         else:

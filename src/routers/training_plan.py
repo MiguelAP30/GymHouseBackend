@@ -103,23 +103,34 @@ def get_training_plan_by_id(credentials: Annotated[HTTPAuthorizationCredentials,
         role_current_user = payload.get("user.role")
         status_user = payload.get("user.status")
         current_user = payload.get("sub")
+
+        if not status_user:
+            return JSONResponse(content={"message": "Tu cuenta está inactiva", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
         
-        # Obtener el plan de entrenamiento sin filtrar por usuario
+        if role_current_user < 2:
+            return JSONResponse(content={"message": "Privilegios insuficientes", "data": None}, status_code=status.HTTP_403_FORBIDDEN)
+
+        repo = TrainingPlanRepository(db)
         try:
-            existing_plan = TrainingPlanRepository(db).get_training_plan_by_id(id)
+            existing_plan = repo.get_training_plan_by_id(id)
             if not existing_plan:
                 return JSONResponse(content={"message": "El plan no fue encontrado", "data": None}, status_code=status.HTTP_404_NOT_FOUND)
 
+            # Si el plan es visible, lo puede ver cualquiera con rol >= 2 y cuenta activa
             if existing_plan.is_visible:
-                return JSONResponse(content={"message": "Plan obtenido exitosamente", "data": jsonable_encoder(existing_plan)}, status_code=status.HTTP_200_OK)
+                response = jsonable_encoder(existing_plan)
+                permissions = repo.check_user_permissions_on_training_plan(id, current_user)
+                response['permissions'] = permissions
+                return JSONResponse(content={"message": "Plan obtenido exitosamente", "data": response}, status_code=status.HTTP_200_OK)
 
-            if not status_user:
-                return JSONResponse(content={"message": "Tu cuenta está inactiva", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
-
-            if existing_plan.user_email != current_user and role_current_user != 4:
+            # Si no es visible, chequear permisos con la función que definiste
+            permissions = repo.check_user_permissions_on_training_plan(id, current_user)
+            if not (permissions["can_edit"] or role_current_user == 4):
                 return JSONResponse(content={"message": "No tienes permiso para ver este plan", "data": None}, status_code=status.HTTP_403_FORBIDDEN)
-
-            return JSONResponse(content={"message": "Plan obtenido exitosamente", "data": jsonable_encoder(existing_plan)}, status_code=status.HTTP_200_OK)
+            
+            response = jsonable_encoder(existing_plan)
+            response['permissions'] = permissions
+            return JSONResponse(content={"message": "Plan obtenido exitosamente", "data": response}, status_code=status.HTTP_200_OK)
 
         except Exception as e:
             return JSONResponse(content={"message": f"Error al obtener el plan: {str(e)}", "data": None}, status_code=status.HTTP_400_BAD_REQUEST)

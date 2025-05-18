@@ -334,3 +334,32 @@ class WorkoutDayExerciseRepository:
         self.db.delete(element)
         self.db.commit()
         return element
+    
+    def check_user_permissions_on_workout_day_exercise(self, workout_day_exercise_id: int, user_email: str) -> dict:
+        """
+        Retorna un dict con flags 'can_edit' y 'can_delete' para el usuario y el workout_day_exercise.
+        """
+        current_user = self.db.query(UserModel).filter(UserModel.email == user_email).first()
+        if not current_user:
+            raise ValueError("Usuario no encontrado")
+        element = self.db.query(WorkoutDayExerciseModel).filter(WorkoutDayExerciseModel.id == workout_day_exercise_id).first()
+        if not element:
+            raise ValueError(f"No existe un ejercicio con id {workout_day_exercise_id}")
+        training_plan = self.db.query(TrainingPlanModel).filter(TrainingPlanModel.id == element.training_plan_id).first()
+        if not training_plan:
+            raise ValueError("Plan de entrenamiento no encontrado")
+
+        can_edit = False
+        can_delete = False
+        # Aplica la lógica que ya tienes, pero retorna los flags en vez de lanzar error
+        if current_user.role_id == 4 or (user_email == training_plan.user_email and current_user.role_id >= 2):
+            can_edit = True
+            can_delete = True
+        else:
+            gym = self.gym_repo.get_gym_by_email(user_email)
+            if gym and current_user.role_id == 3 and training_plan.is_gym_created:
+                user_gym = self.user_gym_repo.get_user_gym(training_plan.user_email, gym.id)
+                if user_gym and user_gym.is_active and training_plan.user_gym_id == user_gym.id:
+                    can_edit = True
+                    can_delete = True
+        return {"can_edit": can_edit, "can_delete": can_delete}

@@ -246,9 +246,58 @@ class ExerciseConfigurationRepository():
         element.exercise_id = exercise_configuration.exercise_id
         element.workout_day_exercise_id = exercise_configuration.workout_day_exercise_id
         element.sets = exercise_configuration.sets
-        element.reps = exercise_configuration.reps
+        element.repsHigh = exercise_configuration.repsHigh
+        element.repsLow = exercise_configuration.repsLow
         element.rest = exercise_configuration.rest
 
         self.db.commit()
         self.db.refresh(element)
         return element
+    def check_user_permissions_on_exercise_configuration(self, exercise_configuration_id: int, user_email: str) -> dict:
+        """
+        Retorna un dict con flags 'can_edit' y 'can_delete' para la configuración de ejercicio y el usuario.
+        """
+        current_user = self.db.query(UserModel).filter(UserModel.email == user_email).first()
+        if not current_user:
+            raise ValueError("Usuario no encontrado")
+
+        element = self.db.query(ExerciseConfigurationModel).filter(
+            ExerciseConfigurationModel.id == exercise_configuration_id
+        ).first()
+        if not element:
+            raise ValueError(f"No existe una configuración de ejercicio con id {exercise_configuration_id}")
+
+        workout_day_exercise = self.db.query(WorkoutDayExerciseModel).filter(
+            WorkoutDayExerciseModel.id == element.workout_day_exercise_id
+        ).first()
+        if not workout_day_exercise:
+            raise ValueError("Ejercicio por día de la semana no encontrado")
+
+        training_plan = self.db.query(TrainingPlanModel).filter(
+            TrainingPlanModel.id == workout_day_exercise.training_plan_id
+        ).first()
+        if not training_plan:
+            raise ValueError("Plan de entrenamiento no encontrado")
+
+        can_edit = False
+        can_delete = False
+
+        # Administrador
+        if current_user.role_id == 4:
+            can_edit = True
+            can_delete = True
+
+        # Usuario dueño del plan (premium o superior)
+        elif user_email == training_plan.user_email and current_user.role_id >= 2:
+            can_edit = True
+            can_delete = True
+
+        # Gimnasio creador del plan
+        gym = self.gym_repo.get_gym_by_email(user_email)
+        if gym and current_user.role_id == 3 and training_plan.is_gym_created:
+            user_gym = self.user_gym_repo.get_user_gym(training_plan.user_email, gym.id)
+            if user_gym and user_gym.is_active and training_plan.user_gym_id == user_gym.id:
+                can_edit = True
+                can_delete = True
+
+        return {"can_edit": can_edit, "can_delete": can_delete}

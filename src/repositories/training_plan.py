@@ -348,3 +348,39 @@ class TrainingPlanRepository():
         self.db.commit()
         self.db.refresh(plan)
         return plan
+
+    def check_user_permissions_on_training_plan(self, training_plan_id: int, user_email: str) -> dict:
+        """
+        Retorna un dict con flags 'can_edit' y 'can_delete' para el usuario y el training_plan.
+        """
+        # Obtener el plan de entrenamiento
+        plan = self.db.query(training_plans).filter(training_plans.id == training_plan_id).first()
+        if not plan:
+            raise ValueError("Plan de entrenamiento no encontrado")
+        
+        # Obtener el usuario actual
+        current_user = self.db.query(User).filter(User.email == user_email).first()
+        if not current_user:
+            raise ValueError("Usuario no encontrado")
+        
+        can_edit = False
+        can_delete = False
+        
+        # Administrador (role 4)
+        if current_user.role_id == 4:
+            can_edit = True
+            can_delete = True
+        # Dueño del plan y premium (role >= 2)
+        elif user_email == plan.user_email and current_user.role_id >= 2:
+            can_edit = True
+            can_delete = True
+        # Gimnasio (role 3), plan creado por gimnasio y es el creador
+        else:
+            gym = self.gym_repo.get_gym_by_email(user_email)
+            if gym and current_user.role_id == 3 and plan.is_gym_created:
+                user_gym = self.user_gym_repo.get_user_gym(plan.user_email, gym.id)
+                if user_gym and user_gym.is_active and plan.user_gym_id == user_gym.id:
+                    can_edit = True
+                    can_delete = True
+        
+        return {"can_edit": can_edit, "can_delete": can_delete}

@@ -91,25 +91,36 @@ def remove_exercise_configuration(credentials: Annotated[HTTPAuthorizationCreden
     except Exception as e:
         return JSONResponse(content={"message": f"Error interno: {str(e)}", "data": None}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@exercise_configuration_router.get('/{id}',response_model=ExerciseConfiguration,description="Devuelve una configuración de ejercicio específica")
-def get_exercise_configuration_by_id(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], id: int = Path(ge=1)) -> dict:
+@exercise_configuration_router.get('/{id}', response_model=ExerciseConfiguration, description="Devuelve una configuración de ejercicio específica")
+def get_exercise_configuration_by_id(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+    id: int = Path(ge=1)
+) -> dict:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
     if payload:
-        # Obtener la configuración sin verificar permisos
-        element = ExerciseConfigurationRepository(db).get_exercise_configuration_by_id(id)
-        if not element:        
+        role_user = payload.get("user.role")
+        status_user = payload.get("user.status")
+
+        if not status_user:
+            return JSONResponse(content={"message": "Tu cuenta está inactiva"}, status_code=status.HTTP_401_UNAUTHORIZED)
+
+        if role_user < 2:
+            return JSONResponse(content={"message": "Privilegios insuficientes"}, status_code=status.HTTP_403_FORBIDDEN)
+
+        current_user = payload.get("sub")
+        repo = ExerciseConfigurationRepository(db)
+        element = repo.get_exercise_configuration_by_id(id)
+
+        if not element:
             return JSONResponse(
-                content={            
-                    "message": "La configuración de ejercicio solicitada no fue encontrada",            
-                    "data": None        
-                    }, 
-                    status_code=status.HTTP_404_NOT_FOUND
-                    )    
-        return JSONResponse(
-            content=jsonable_encoder(element),                        
-            status_code=status.HTTP_200_OK
+                content={"message": "La configuración de ejercicio solicitada no fue encontrada", "data": None},
+                status_code=status.HTTP_404_NOT_FOUND
             )
+        permissions = repo.check_user_permissions_on_exercise_configuration(id, current_user)
+        response = jsonable_encoder(element)
+        response["permissions"] = permissions
+        return JSONResponse(content={"message": "Configuración obtenida exitosamente", "data": response}, status_code=status.HTTP_200_OK)
 
 @exercise_configuration_router.put('/{id}',response_model=dict,description="Actualiza una configuración de ejercicio específica")
 def update_exercise_configuration(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],id: int = Path(ge=1),exercise_configuration: ExerciseConfiguration = Body()) -> dict:

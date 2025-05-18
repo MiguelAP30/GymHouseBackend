@@ -46,7 +46,6 @@ class UserRepository():
         if element:
             if element.role_id != 4 and (element.final_date is None or element.final_date < date.today()):
                 element.role_id = 1
-                element.status = False
                 self.db.commit()
                 self.db.refresh(element)
             return User(
