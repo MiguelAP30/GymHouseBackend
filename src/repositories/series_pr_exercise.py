@@ -28,11 +28,7 @@ class SeriesPrExerciseRepository():
         if not history:
             raise ValueError("No tienes permiso para crear series en este historial")
             
-        new_series = series_pr_exercise(
-            history_pr_exercise_id=series_pr_exercise_data.history_pr_exercise_id,
-            weight=series_pr_exercise_data.weight,
-            reps=series_pr_exercise_data.reps
-        )
+        new_series = series_pr_exercise(**series_pr_exercise_data.model_dump())
         self.db.add(new_series)
         self.db.commit()
         self.db.refresh(new_series)
@@ -40,21 +36,27 @@ class SeriesPrExerciseRepository():
     
     def remove_series_pr_exercise(self, id: int, user_email: str) -> dict:
         """
-        Elimina una serie PR específica.
+        Elimina una serie PR específica si pertenece al usuario.
         """
-        series = self.db.query(series_pr_exercise).filter(series_pr_exercise.id == id).first()
-        if series:
+        try:
+            series = self.db.query(series_pr_exercise).filter(series_pr_exercise.id == id).first()
+            if not series:
+                raise ValueError("Serie no encontrada")
+
             history = self.db.query(history_pr_exercise).filter(
                 history_pr_exercise.id == series.history_pr_exercise_id,
                 history_pr_exercise.user_email == user_email
             ).first()
-            
+
             if not history:
                 raise ValueError("No tienes permiso para eliminar esta serie")
-                
+
             self.db.delete(series)
             self.db.commit()
-        return series
+            return {"message": "Serie eliminada correctamente"}
+        except Exception as e:
+            self.db.rollback()
+            raise e
     
     def get_series_pr_exercise_by_id(self, id: int) -> SeriesPrExercise:
         """

@@ -51,17 +51,30 @@ def create_series_pr_exercise(credentials: Annotated[HTTPAuthorizationCredential
 @series_pr_exercise_router.delete('/{id}', response_model=dict, description="Elimina una serie PR de ejercicio específica")
 def remove_series_pr_exercise(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)], id: int = Path(ge=1)) -> dict:
     db = SessionLocal()
-    payload = auth_handler.decode_token(credentials.credentials)
-    if payload:
+    try:
+        payload = auth_handler.decode_token(credentials.credentials)
+        if not payload:
+            return JSONResponse(content={"message": "Token inválido", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
+
         role_current_user = payload.get("user.role")
         user_status = payload.get("user.status")
+
         if role_current_user < 2:
             return JSONResponse(content={"message": "No tienes los permisos necesarios", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
-        if user_status:
-            current_user = payload.get("sub")
+
+        if not user_status:
+            return JSONResponse(content={"message": "Tu cuenta está inactiva", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
+
+        current_user = payload.get("sub")
+        try:
             result = SeriesPrExerciseRepository(db).remove_series_pr_exercise(id, current_user)
-            return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
-        return JSONResponse(content={"message": "Tu cuenta está inactiva", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
+            return JSONResponse(content={"message": result["message"]}, status_code=status.HTTP_200_OK)
+        except ValueError as ve:
+            return JSONResponse(content={"message": str(ve), "data": None}, status_code=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            return JSONResponse(content={"message": "Error interno del servidor", "data": None}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    finally:
+        db.close()
 
 @series_pr_exercise_router.get('/{id}', response_model=SeriesPrExercise, description="Devuelve una serie PR de ejercicio específica")
 def get_series_pr_exercise_by_id(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)], id: int = Path(ge=1)) -> dict:

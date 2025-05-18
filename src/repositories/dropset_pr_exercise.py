@@ -30,11 +30,7 @@ class DropSetPrExerciseRepository():
             if not history:
                 raise ValueError("No tienes permiso para crear dropsets en este historial")
                 
-        new_dropset = dropset_pr_exercise(
-            serie_pr_exercise_id=dropset_pr_exercise_data.serie_pr_exercise_id,
-            weight=dropset_pr_exercise_data.weight,
-            reps=dropset_pr_exercise_data.reps
-        )
+        new_dropset = dropset_pr_exercise(**dropset_pr_exercise_data.model_dump())
         self.db.add(new_dropset)
         self.db.commit()
         self.db.refresh(new_dropset)

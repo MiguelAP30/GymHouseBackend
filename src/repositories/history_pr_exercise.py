@@ -1,6 +1,7 @@
 from typing import List
 from src.models.history_pr_exercise import HistoryPrExercise as history_pr_exercise
-from src.schemas.history_pr_exercise import HistoryPrExercise
+from src.schemas.history_pr_exercise import HistoryPrExercise, HistoryPrExerciseUpdate
+
 
 class HistoryPrExerciseRepository():
     def __init__(self, db) -> None:
@@ -48,25 +49,39 @@ class HistoryPrExerciseRepository():
             - Se crea un nuevo historial de ejercicio PR.
         """
         # Crear el historial
-        new_history = history_pr_exercise(
-            user_email=history_pr_exercise_data.user_email,
-            exercise_id=history_pr_exercise_data.exercise_id,
-            date=history_pr_exercise_data.date
-        )
+        new_history = history_pr_exercise(**history_pr_exercise_data.model_dump())
         self.db.add(new_history)
         self.db.commit()
         self.db.refresh(new_history)
         return new_history
     
-    def remove_history_pr_exercise(self, id: int) -> dict:
-        """
-        Elimina un historial de ejercicio PR específico.
-        """
+    def remove_history_pr_exercise(self, id: int, user_email: str) -> dict:
         element = self.db.query(history_pr_exercise).filter(history_pr_exercise.id == id).first()
-        if element:
-            self.db.delete(element)
-            self.db.commit()
+        if not element:
+            raise ValueError("Historial no encontrado")
+
+        if element.user_email != user_email:
+            raise PermissionError("No tienes permiso para eliminar este historial")
+
+        self.db.delete(element)
+        self.db.commit()
+        return {"message": "Historial eliminado correctamente"}
+    
+    def update_history_pr_exercise(self, id: int, history_pr_exercise_data: HistoryPrExerciseUpdate, user_email: str) -> history_pr_exercise:
+        element = self.db.query(history_pr_exercise).filter(history_pr_exercise.id == id).first()
+        if not element:
+            raise ValueError("Historial no encontrado")
+
+        if element.user_email != user_email:
+            raise PermissionError("No tienes permiso para editar este historial")
+
+        for field, value in history_pr_exercise_data.model_dump(exclude_unset=True).items():
+            setattr(element, field, value)
+
+        self.db.commit()
+        self.db.refresh(element)
         return element
+
     
     def get_history_pr_exercise_by_id(self, id: int, user_email: str) -> HistoryPrExercise:
         """
@@ -85,28 +100,6 @@ class HistoryPrExerciseRepository():
         ).first()
         return element
     
-    def update_history_pr_exercise(self, id: int, history_pr_exercise_data: HistoryPrExercise) -> HistoryPrExercise:
-        """
-        Actualiza un historial de ejercicio PR específico.
-
-        Precondición:
-            - La base de datos debe estar conectada y disponible.
-            - El ID debe ser un entero válido.
-            - history_pr_exercise debe ser un objeto HistoryPrExercise válido.
-
-        Postcondición:
-            - Actualiza el historial de ejercicio PR con el ID especificado en la base de datos.
-            - Devuelve un objeto HistoryPrExercise que representa el historial de ejercicio PR actualizado.
-        """
-        element = self.db.query(history_pr_exercise).filter(history_pr_exercise.id == id).first()
-        if element:
-            # Actualizar datos básicos del historial
-            element.date = history_pr_exercise_data.date
-            element.notas = history_pr_exercise_data.notas
-            element.tipo_sesion = history_pr_exercise_data.tipo_sesion
-            self.db.commit()
-            self.db.refresh(element)
-        return element
     
     def get_history_pr_exercise_by_exercise_id(self, exercise_id: int, user_email: str) -> List[HistoryPrExercise]:
         """
