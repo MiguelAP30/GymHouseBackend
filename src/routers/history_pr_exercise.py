@@ -8,7 +8,7 @@ from src.auth.has_access import security
 from src.auth import auth_handler
 from fastapi.security import HTTPAuthorizationCredentials
 
-from src.schemas.history_pr_exercise import HistoryPrExercise, HistoryPrExerciseUpdate
+from src.schemas.history_pr_exercise import HistoryPrExercise, HistoryPrExerciseUpdate, FullHistoryPrExerciseCreate
 from src.repositories.history_pr_exercise import HistoryPrExerciseRepository
 from src.models.history_pr_exercise import HistoryPrExercise as history_pr_exercises
 
@@ -31,27 +31,33 @@ def get_history_pr_exercise(credentials: Annotated[HTTPAuthorizationCredentials,
             return JSONResponse(content=jsonable_encoder(result), status_code=status.HTTP_200_OK)
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@history_pr_exercise_router.post('',response_model=HistoryPrExercise,description="Crea un nuevo historial de PR de ejercicio")
-def create_history_pr_exercise(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], history_pr_exercise: HistoryPrExercise = Body()) -> dict:
-    db= SessionLocal()
+@history_pr_exercise_router.post('',response_model=HistoryPrExercise,description="Crea un historial completo de PR de ejercicio incluyendo series y dropsets")
+def create_history_pr_exercise(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], full_data: FullHistoryPrExerciseCreate  = Body()) -> dict:
+    db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
-    if payload:
-        role_current_user = payload.get("user.role")
-        status_user = payload.get("user.status")
-        if role_current_user < 2:
-            return JSONResponse(content={"message": "You do not have the necessary permissions", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
-        if status_user:
-            current_user = payload.get("sub")
-            history_pr_exercise.user_email = current_user
-            new_history_pr_exercise = HistoryPrExerciseRepository(db).create_new_history_pr_exercise(history_pr_exercise)
-            return JSONResponse(
-                content={        
-                "message": "The history pr exercise was successfully created",        
-                "data": jsonable_encoder(new_history_pr_exercise)    
-                }, 
-                status_code=status.HTTP_201_CREATED
-            )
-        return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
+    if not payload:
+        return JSONResponse(content={"message": "Token inválido", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
+    role_current_user = payload.get("user.role")
+    status_user = payload.get("user.status")
+    if role_current_user < 2:
+        return JSONResponse(content={"message": "No tienes permisos", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
+    if not status_user:
+        return JSONResponse(content={"message": "Tu cuenta está inactiva", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
+    current_user = payload.get("sub")
+    try:
+        repository = HistoryPrExerciseRepository(db)
+        new_history = repository.create_new_history_pr_exercise(current_user, full_data)
+        return JSONResponse(
+            content={"message": "Entrenamiento completo creado exitosamente", "data": jsonable_encoder(new_history)},
+            status_code=status.HTTP_201_CREATED
+        )
+    except Exception as e:
+        return JSONResponse(
+            content={"message": f"Error al crear entrenamiento: {str(e)}", "data": None},
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    finally:
+        db.close()
 
 @history_pr_exercise_router.delete('/{id}', response_model=dict, description="Elimina un historial de PR de ejercicio específico")
 def remove_history_pr_exercise(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)], id: int = Path(ge=1)) -> dict:

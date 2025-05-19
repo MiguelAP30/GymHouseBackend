@@ -1,6 +1,8 @@
 from typing import List
 from src.models.history_pr_exercise import HistoryPrExercise as history_pr_exercise
-from src.schemas.history_pr_exercise import HistoryPrExercise, HistoryPrExerciseUpdate
+from src.schemas.history_pr_exercise import HistoryPrExercise, HistoryPrExerciseUpdate, FullHistoryPrExerciseCreate
+from src.models.series_pr_exercise import SeriesPrExercise as series_pr_exercise
+from src.models.dropset_pr_exercise import DropSetPrExercise as dropset_pr_exercise
 
 
 class HistoryPrExerciseRepository():
@@ -32,28 +34,80 @@ class HistoryPrExerciseRepository():
         query = self.db.query(history_pr_exercise).filter(history_pr_exercise.user_email == user_email)
         return query.all()
     
-    def create_new_history_pr_exercise(self, history_pr_exercise_data: HistoryPrExercise) -> HistoryPrExercise:
-        """
-        Crea un nuevo historial de ejercicio PR.
+    def create_new_history_pr_exercise(self, user_email: str, full_data: FullHistoryPrExerciseCreate) -> dict:
+        try:
+            # Crear el historial principal
+            new_history = history_pr_exercise(
+                user_email=user_email,
+                exercise_id=full_data.exercise_id,
+                date=full_data.date,
+                notas=full_data.notas,
+                tipo_sesion=full_data.tipo_sesion
+            )
+            self.db.add(new_history)
+            self.db.commit()
+            self.db.refresh(new_history)
 
-        Args:
-            history_pr_exercise_data: El objeto HistoryPrExercise que representa el historial de ejercicio PR a crear.
+            all_series = []
 
-        Returns:
-            El objeto HistoryPrExercise creado.
+            # Crear series y dropsets
+            for serie in full_data.series:
+                new_serie = series_pr_exercise(
+                    history_pr_exercise_id=new_history.id,
+                    weight=serie.weight,
+                    reps=serie.reps,
+                    tipo_serie=serie.tipo_serie,
+                    rpe=serie.rpe,
+                    orden_serie=serie.orden_serie,
+                    notas_serie=serie.notas_serie
+                )
+                self.db.add(new_serie)
+                self.db.commit()
+                self.db.refresh(new_serie)
 
-        Precondición:
-            - history_pr_exercise_data debe ser un objeto HistoryPrExercise válido.
+                all_dropsets = []
 
-        Postcondición:
-            - Se crea un nuevo historial de ejercicio PR.
-        """
-        # Crear el historial
-        new_history = history_pr_exercise(**history_pr_exercise_data.model_dump())
-        self.db.add(new_history)
-        self.db.commit()
-        self.db.refresh(new_history)
-        return new_history
+                for dropset in serie.dropsets:
+                    new_dropset = dropset_pr_exercise(
+                        serie_pr_exercise_id=new_serie.id,
+                        weight=dropset.weight,
+                        reps=dropset.reps,
+                        orden_dropset=dropset.orden_dropset
+                    )
+                    self.db.add(new_dropset)
+                    self.db.commit()
+                    self.db.refresh(new_dropset)
+                    all_dropsets.append({
+                        "id": new_dropset.id,
+                        "weight": new_dropset.weight,
+                        "reps": new_dropset.reps,
+                        "orden_dropset": new_dropset.orden_dropset
+                    })
+
+                all_series.append({
+                    "id": new_serie.id,
+                    "weight": new_serie.weight,
+                    "reps": new_serie.reps,
+                    "tipo_serie": new_serie.tipo_serie,
+                    "rpe": new_serie.rpe,
+                    "orden_serie": new_serie.orden_serie,
+                    "notas_serie": new_serie.notas_serie,
+                    "dropsets": all_dropsets
+                })
+
+            return {
+                "id": new_history.id,
+                "user_email": new_history.user_email,
+                "exercise_id": new_history.exercise_id,
+                "date": str(new_history.date),
+                "notas": new_history.notas,
+                "tipo_sesion": new_history.tipo_sesion,
+                "series": all_series
+            }
+
+        except Exception as e:
+            self.db.rollback()
+            raise e
     
     def remove_history_pr_exercise(self, id: int, user_email: str) -> dict:
         element = self.db.query(history_pr_exercise).filter(history_pr_exercise.id == id).first()

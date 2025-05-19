@@ -10,19 +10,6 @@ class SeriesPrExercise(BaseModel):
     rpe: Optional[float] = Field(default=None, title="RPE", ge=1, le=10)
     orden_serie: Optional[int] = Field(default=None, title="Orden de la serie", gt=0)
     notas_serie: Optional[str] = Field(default=None, title="Notas de la serie", max_length=500)
-
-    @validator("weight")
-    def weight_must_be_positive(cls, v):
-        if v <= 0:
-            raise ValueError("El peso debe ser positivo")
-        return v
-    
-    @validator("reps")
-    def reps_must_be_positive(cls, v):
-        if v <= 0:
-            raise ValueError("Las repeticiones deben ser positivas")
-        return v
-    
     class Config:
         json_schema_extra = {
             "example": {
@@ -43,19 +30,6 @@ class UpdateSeriesPrExercise(BaseModel):
     rpe: Optional[float] = Field(default=None, title="RPE", ge=1, le=10)
     orden_serie: Optional[int] = Field(default=None, title="Orden de la serie", gt=0)
     notas_serie: Optional[str] = Field(default=None, title="Notas de la serie", max_length=500)
-
-    @validator("weight")
-    def weight_must_be_positive(cls, v):
-        if v <= 0:
-            raise ValueError("El peso debe ser positivo")
-        return v
-    
-    @validator("reps")
-    def reps_must_be_positive(cls, v):
-        if v <= 0:
-            raise ValueError("Las repeticiones deben ser positivas")
-        return v
-    
     class Config:
         json_schema_extra = {
             "example": {
