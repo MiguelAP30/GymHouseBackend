@@ -16,7 +16,7 @@ gym_router = APIRouter(tags=['Gimnasios'])
 
 #CRUD gym
 
-@gym_router.get('/user',response_model=Gym,description="Devuelve el gimnasio de un usuario específico")
+@gym_router.get('/by_user',response_model=Gym,description="Devuelve el gimnasio de un usuario específico")
 def get_gym_by_user(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)]) -> dict:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
@@ -107,7 +107,7 @@ def remove_gym_admin(credentials: Annotated[HTTPAuthorizationCredentials,Depends
             return JSONResponse(content={"message": "The gym was successfully deleted", "data": None}, status_code=status.HTTP_200_OK)
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@gym_router.delete('/user',response_model=dict,description="Elimina el gimnasio del usuario actual")
+@gym_router.delete('/by_user',response_model=dict,description="Elimina el gimnasio del usuario actual")
 def remove_gym_user(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)]) -> dict:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
@@ -122,7 +122,7 @@ def remove_gym_user(credentials: Annotated[HTTPAuthorizationCredentials,Depends(
             return JSONResponse(content={"message": "Your gym was successfully deleted", "data": None}, status_code=status.HTTP_200_OK)
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@gym_router.put('/user',response_model=Gym,description="Actualiza el gimnasio del usuario actual")
+@gym_router.put('/by_user',response_model=Gym,description="Actualiza el gimnasio del usuario actual")
 def update_gym_user(credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)], gym: GymUpdate = Body()) -> dict:
     db = SessionLocal()
     payload = auth_handler.decode_token(credentials.credentials)
@@ -143,7 +143,7 @@ def update_gym_user(credentials: Annotated[HTTPAuthorizationCredentials,Depends(
             return JSONResponse(content={"message": "You don't have a gym to update", "data": None}, status_code=status.HTTP_404_NOT_FOUND)
         return JSONResponse(content={"message": "Your account is inactive", "data": None}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-@gym_router.put('/gym/{gym_id}/max-users', response_model=dict, description="Aumenta el límite máximo de usuarios de un gimnasio")
+@gym_router.put('/{gym_id}/max-users', response_model=dict, description="Aumenta el límite máximo de usuarios de un gimnasio")
 def increase_max_users(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
     gym_id: int = Path(ge=1),

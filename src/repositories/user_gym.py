@@ -1,7 +1,7 @@
 from typing import List, Optional, Tuple
 from sqlalchemy import and_, or_
 from src.models.user_gym import UserGym as user_gym
-from src.schemas.user_gym import UserGym, UserGymCreate
+from src.schemas.user_gym import UserGym, UserGymCreate, UserGymUpdateFinalDate
 from src.models.user import User
 from src.models.gym import Gym
 from src.models.training_plan import TrainingPlan
@@ -40,7 +40,7 @@ class UserGymRepository():
         
         # Actualizar el rol del usuario a premium (role_id = 2)
         user.role_id = 2
-        user.start_date = date.today()
+        user.start_date = user_gym_data.start_date
         user.final_date = user_gym_data.final_date
         
         # Incrementar el contador de usuarios del gimnasio
@@ -94,21 +94,20 @@ class UserGymRepository():
         
         return {"message": "Usuario eliminado exitosamente del gimnasio", "data": None}
     
-    def update_user_gym(self, id: int, user_gym_data: UserGym) -> UserGym:
+    def update_user_gym(self, id: int, data: UserGymUpdateFinalDate) -> Optional[UserGym]:
         element = self.db.query(user_gym).filter(user_gym.id == id).first()
         if element:
-            # Actualizar los datos de la relación
-            for var, value in user_gym_data.model_dump().items():
-                setattr(element, var, value)
-            
+            element.final_date = data.final_date
+
             # Actualizar el usuario si es necesario
             user = self.db.query(User).filter(User.email == element.user_email).first()
             if user:
-                user.final_date = element.final_date
-            
+                user.final_date = data.final_date
+
             self.db.commit()
             self.db.refresh(element)
-        return element
+            return element
+        return None
     
     def get_user_gym_by_id(self, id: int) -> UserGym:
         element = self.db.query(user_gym).filter(user_gym.id == id).first()

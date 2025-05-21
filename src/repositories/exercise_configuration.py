@@ -106,7 +106,7 @@ class ExerciseConfigurationRepository():
             can_delete = True
         #Verifica que el plan fue creado por un gimnasio, que el gimnasio está asociado con el usuario (user_gym.is_active) y 
         #que ese mismo gimnasio fue el que creó el plan (training_plan.user_gym_id == user_gym.id).
-        gym = self.gym_repo.get_gym_by_email(training_plan.user_email)
+        gym = self.gym_repo.get_gym_by_email(user_email)
         if current_user.role_id == 3 and training_plan.is_gym_created and gym:
             user_gym = self.user_gym_repo.get_user_gym(training_plan.user_email, gym.id)
             if user_gym and user_gym.is_active and training_plan.user_gym_id == user_gym.id:
@@ -167,7 +167,7 @@ class ExerciseConfigurationRepository():
             can_create = True
         #Verifica que el plan fue creado por un gimnasio, que el gimnasio está asociado con el usuario (user_gym.is_active) y 
         #que ese mismo gimnasio fue el que creó el plan (training_plan.user_gym_id == user_gym.id).
-        gym = self.gym_repo.get_gym_by_email(training_plan.user_email)
+        gym = self.gym_repo.get_gym_by_email(user_email)
         if current_user.role_id == 3 and training_plan.is_gym_created and gym:
             user_gym = self.user_gym_repo.get_user_gym(training_plan.user_email, gym.id)
             if user_gym and user_gym.is_active and training_plan.user_gym_id == user_gym.id:
@@ -234,7 +234,7 @@ class ExerciseConfigurationRepository():
             can_update = True
         #Verifica que el plan fue creado por un gimnasio, que el gimnasio está asociado con el usuario (user_gym.is_active) y 
         #que ese mismo gimnasio fue el que creó el plan (training_plan.user_gym_id == user_gym.id).
-        gym = self.gym_repo.get_gym_by_email(training_plan.user_email)
+        gym = self.gym_repo.get_gym_by_email(user_email)
         if current_user.role_id == 3 and training_plan.is_gym_created and gym:
             user_gym = self.user_gym_repo.get_user_gym(training_plan.user_email, gym.id)
             if user_gym and user_gym.is_active and training_plan.user_gym_id == user_gym.id:
