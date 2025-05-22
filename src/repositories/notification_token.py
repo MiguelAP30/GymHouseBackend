@@ -46,3 +46,15 @@ class NotificationTokenRepository:
             self.db.commit()
             return True
         return False 
+    
+    def get_all_tokens(self):
+        return self.db.query(NotificationToken).all()
+
+    def delete_all_tokens(self):
+        try:
+            self.db.query(NotificationToken).delete()
+            self.db.commit()
+            return True
+        except Exception as e:
+            self.db.rollback()
+            return False

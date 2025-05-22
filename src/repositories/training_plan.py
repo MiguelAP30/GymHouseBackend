@@ -256,7 +256,6 @@ class TrainingPlanRepository():
         gym_user = self.db.query(User).filter(User.email == gym_email, User.role_id == 3).first()
         if not gym_user:
             raise ValueError("El usuario actual no es un gimnasio válido")
-
         # Verificar que el usuario destino exista
         target_user = self.db.query(User).filter(User.email == training_plan.user_email).first()
         if not target_user:

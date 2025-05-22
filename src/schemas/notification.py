@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 
 class NotificationTokenBase(BaseModel):
     token: str
@@ -19,3 +19,10 @@ class Notification(BaseModel):
     title: str
     message: str
     token: str 
+
+
+
+class BulkNotification(BaseModel):
+    title: str
+    message: str
+    tokens: List[str]
