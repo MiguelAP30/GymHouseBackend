@@ -138,3 +138,9 @@ class UserRepository():
         self.db.commit()
         self.db.refresh(element)
         return element
+
+    def get_user_model_by_email(self, email: str):
+        """
+        Obtiene el modelo SQLAlchemy de un usuario por su email.
+        """
+        return self.db.query(users).filter(users.email == email).first()

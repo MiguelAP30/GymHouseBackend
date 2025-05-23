@@ -152,7 +152,7 @@ class AuthRepository:
 
     def change_password(self, email: str, current_password: str, new_password: str) -> dict:
         db = SessionLocal()
-        user = UserRepository(db).get_user_by_email(email=email)
+        user = UserRepository(db).get_user_model_by_email(email=email)
         
         if user is None:
             raise HTTPException(
